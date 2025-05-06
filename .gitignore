@@ -1,0 +1,10 @@
+# Ignore everything
+*
+
+# Track what matters
+!.gitignore
+!early-init.el
+!init.el
+!custom/
+!custom/**
+
