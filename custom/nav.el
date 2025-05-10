@@ -105,6 +105,20 @@
 
 (global-set-key (kbd "C-M-t") 'launch-tidal)
 
+(defun open-project ()
+	"Projectile switch project, but opens in new perspective."
+	(interactive)
+	(projectile-switch-project)
+	(let ((proj (projectile-project-name))
+				(proj-buffer (buffer-name)))
+		(persp-switch proj)
+		(persp-set-buffer proj-buffer)
+		(switch-to-buffer proj-buffer)
+		(neotree-toggle)
+		(switch-to-buffer proj-buffer)))
+
+(global-set-key (kbd "C-M-o") 'open-project)
+
 (provide 'nav)
 
 ;;; nav.el ends here

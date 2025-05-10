@@ -19,12 +19,14 @@
              ;; are known to work with Combobulate *and* Emacs.
              '((css . ("https://github.com/tree-sitter/tree-sitter-css" "v0.20.0"))
                (go . ("https://github.com/tree-sitter/tree-sitter-go" "v0.20.0"))
+							 (gomod . ("https://github.com/camdencheek/tree-sitter-go-mod" "v1.1.0"))
                (html . ("https://github.com/tree-sitter/tree-sitter-html" "v0.20.1"))
                (javascript . ("https://github.com/tree-sitter/tree-sitter-javascript" "v0.20.1" "src"))
 							 (haskell . ("https://github.com/tree-sitter/tree-sitter-haskell" "v0.23.1"))
                (json . ("https://github.com/tree-sitter/tree-sitter-json" "v0.20.2"))
                (markdown . ("https://github.com/ikatyang/tree-sitter-markdown" "v0.7.1"))
                (python . ("https://github.com/tree-sitter/tree-sitter-python" "v0.20.4"))
+							 (ruby . ("https://github.com/tree-sitter/tree-sitter-ruby" "v0.23.1"))
                (rust . ("https://github.com/tree-sitter/tree-sitter-rust" "v0.21.2"))
                (toml . ("https://github.com/tree-sitter/tree-sitter-toml" "v0.5.1"))
                (tsx . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.20.3" "tsx/src"))
@@ -103,7 +105,11 @@
 					 js-ts-mode
 					 haskell-tidal-mode
 					 haskell-ts-mode
-					 rust-ts-mode) . lsp-deferred))
+					 rust-ts-mode
+					 clojure-mode
+					 go-ts-mode
+					 ruby-ts-mode
+					 clojurescript-mode) . lsp-deferred))
 	:commands (lsp lsp-deferred)
 	:bind
 	("C-c c d" . lsp-find-definition)
@@ -219,6 +225,19 @@
 
 (use-package tidal
   :straight t)
+
+(use-package clojure-mode
+	:straight t)
+
+(use-package go-ts-mode)
+
+(use-package ruby-ts-mode)
+
+(use-package dockerfile-mode
+	:straight t)
+
+(use-package docker-compose-mode
+	:straight t)
 
 (provide 'langs)
 ;;; langs.el ends here
