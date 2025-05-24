@@ -114,10 +114,12 @@
 		(persp-switch proj)
 		(persp-set-buffer proj-buffer)
 		(switch-to-buffer proj-buffer)
-		(neotree-toggle)
+		;; (neotree-toggle)
 		(switch-to-buffer proj-buffer)))
 
 (global-set-key (kbd "C-M-o") 'open-project)
+
+(global-set-key (kbd "M-t") 'eshell)
 
 (provide 'nav)
 

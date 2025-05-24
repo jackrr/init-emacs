@@ -8,7 +8,6 @@
   :mode (("\\.tsx\\'" . tsx-ts-mode)
 				 ("\\.json\\'" . js-json-mode)
 				 ("\\.jsonc\\'" . js-json-mode)
-				 ;; ("\\.rs\\'" . rust-ts-mode)
 				 )
   :preface
   (defun mp-setup-install-grammars ()
@@ -17,7 +16,8 @@
     (dolist (grammar
              ;; Note the version numbers. These are the versions that
              ;; are known to work with Combobulate *and* Emacs.
-             '((css . ("https://github.com/tree-sitter/tree-sitter-css" "v0.20.0"))
+             '((bash . ("https://github.com/tree-sitter/tree-sitter-bash" "v0.23.3"))
+							 (css . ("https://github.com/tree-sitter/tree-sitter-css" "v0.20.0"))
                (go . ("https://github.com/tree-sitter/tree-sitter-go" "v0.20.0"))
 							 (gomod . ("https://github.com/camdencheek/tree-sitter-go-mod" "v1.1.0"))
                (html . ("https://github.com/tree-sitter/tree-sitter-html" "v0.20.1"))
@@ -48,13 +48,13 @@
   ;; also
   (dolist (mapping
            '((python-mode . python-ts-mode)
-						 (rust-mode . rust-ts-mode)
              (css-mode . css-ts-mode)
              (typescript-mode . typescript-ts-mode)
-             (js2-mode . js-ts-mode)
+						 (javascript-mode . js-ts-mode)
              (bash-mode . bash-ts-mode)
              (conf-toml-mode . toml-ts-mode)
              (go-mode . go-ts-mode)
+						 (rust-mode . rust-ts-mode)
              (css-mode . css-ts-mode)
              (json-mode . json-ts-mode)
 						 (haskell-mode . haskell-ts-mode)
@@ -106,7 +106,7 @@
 					 haskell-tidal-mode
 					 haskell-ts-mode
 					 rust-ts-mode
-					 clojure-mode
+					 ;; clojure-mode
 					 go-ts-mode
 					 ruby-ts-mode
 					 clojurescript-mode) . lsp-deferred))
@@ -206,27 +206,32 @@
 
 (use-package rust-mode
   :straight t
-  :config
-  (setq rust-format-on-save t))
+	:config
+  (setq rust-format-on-save t)
+	:bind
+	("C-c C-r" . rust-run))
 
 (use-package svelte-mode
-  :straight t)
+	:straight t)
 
 ;; Needed for svelte mode, no treesitter support for svelte (at this time)
 (use-package typescript-mode
-  :straight t)
+	:straight t)
 
 ;; Haskell / tidal / supercollider
 (use-package sclang
 	:straight '(sclang :type git :host github :repo "supercollider/scel" :files ("el/*.el")))
 
 (use-package haskell-ts-mode
-  :straight t)
+	:straight t)
 
 (use-package tidal
-  :straight t)
+	:straight t)
 
 (use-package clojure-mode
+	:straight t)
+
+(use-package cider
 	:straight t)
 
 (use-package go-ts-mode)
