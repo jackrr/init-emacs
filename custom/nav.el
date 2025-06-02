@@ -117,6 +117,10 @@
 		;; (neotree-toggle)
 		(switch-to-buffer proj-buffer)))
 
+(defun revert-buffer-no-confirm ()
+  "Revert buffer without confirmation."
+  (interactive) (revert-buffer t t))
+
 (global-set-key (kbd "C-M-o") 'open-project)
 
 (global-set-key (kbd "M-t") 'eshell)
