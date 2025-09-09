@@ -35,26 +35,26 @@
 	 ("M-<left>" . sp-backward-barf-sexp)
 	 ("C-M-t" . sp-transpose-sexp)))
 
-(use-package apheleia
-  :straight apheleia
-  :config
-	;; Apheleia is too opinionated on how to run prettier, just defer to
-	;; project config
-	(setf (alist-get 'prettier apheleia-formatters)
-				'("npx" "prettier" "--stdin-filepath" filepath))
-	(setf (alist-get 'haskell-ts-mode apheleia-mode-alist)
-				'(ormolu))
-	(setf (alist-get 'typescript-mode apheleia-mode-alist)
-				'(prettier))
-	(setf (alist-get 'javascript-mode apheleia-mode-alist)
-				'(prettier))
-  (apheleia-global-mode +1))
+(use-package emojify
+	:straight t
+	:hook (after-init . global-emojify-mode)
+	:bind (("C-M-e" . emojify-insert-emoji)))
+
+(use-package format-all
+	:straight t
+  :commands format-all-mode
+  :hook (prog-mode . format-all-mode)
+	:config
+	(setq-default format-all-formatters
+								'(("Rust" (rustfmt "--edition" "2024")))))
 
 ;; Make typing/yanking replace instead of prepend to region
 (delete-selection-mode 1)
 
 (global-set-key (kbd "C-;") 'comment-or-uncomment-region-or-line)
 (global-set-key (kbd "C-<return>") 'comment-indent-new-line)
+
+(setq-default tab-width 2)
 
 (defun comment-or-uncomment-region-or-line ()
   "Comments or uncomments the region or the current line if there's no active region."

@@ -24,6 +24,15 @@
 	:config
 	(solaire-global-mode +1))
 
+(use-package ultra-scroll
+	:straight t
+	:init
+	(setq scroll-margin 0
+				scroll-conservatively 3
+				pixel-scroll-precision-interpolate-mice t)
+	:config
+	(ultra-scroll-mode 1))
+
 (use-package ligature
 	:straight t
   :config

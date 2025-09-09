@@ -7,6 +7,7 @@
 
 (require 'straight-bootstrap)
 
+(use-package global)
 (use-package ui)
 (use-package nav)
 (use-package finding)
@@ -22,9 +23,30 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(custom-safe-themes
-	 '("7c28419e963b04bf7ad14f3d8f6655c078de75e4944843ef9522dbecfcd8717d" "6f1f6a1a3cff62cc860ad6e787151b9b8599f4471d40ed746ea2819fcd184e1a" "48042425e84cd92184837e01d0b4fe9f912d875c43021c3bcb7eeb51f1be5710" "df6dfd55673f40364b1970440f0b0cb8ba7149282cf415b81aaad2d98b0f0290" "350fef8767e45b0f81dd54c986ee6854857f27067bac88d2b1c2a6fa7fecb522" "4e2e42e9306813763e2e62f115da71b485458a36e8b4c24e17a2168c45c9cf9d" "4d5d11bfef87416d85673947e3ca3d3d5d985ad57b02a7bb2e32beaf785a100e" "014cb63097fc7dbda3edf53eb09802237961cbb4c9e9abd705f23b86511b0a69" "10e5d4cc0f67ed5cafac0f4252093d2119ee8b8cb449e7053273453c1a1eb7cc" "5c7720c63b729140ed88cf35413f36c728ab7c70f8cd8422d9ee1cedeb618de5" "34cf3305b35e3a8132a0b1bdf2c67623bc2cb05b125f8d7d26bd51fd16d547ec" default))
+	 '("8b148cf8154d34917dfc794b5d0fe65f21e9155977a36a5985f89c09a9669aa0"
+		 "e14884c30d875c64f6a9cdd68fe87ef94385550cab4890182197b95d53a7cf40"
+		 "9e36779f5244f7d715d206158a3dade839d4ccb17f6a2f0108bf8d476160a221"
+		 "7c28419e963b04bf7ad14f3d8f6655c078de75e4944843ef9522dbecfcd8717d"
+		 "6f1f6a1a3cff62cc860ad6e787151b9b8599f4471d40ed746ea2819fcd184e1a"
+		 "48042425e84cd92184837e01d0b4fe9f912d875c43021c3bcb7eeb51f1be5710"
+		 "df6dfd55673f40364b1970440f0b0cb8ba7149282cf415b81aaad2d98b0f0290"
+		 "350fef8767e45b0f81dd54c986ee6854857f27067bac88d2b1c2a6fa7fecb522"
+		 "4e2e42e9306813763e2e62f115da71b485458a36e8b4c24e17a2168c45c9cf9d"
+		 "4d5d11bfef87416d85673947e3ca3d3d5d985ad57b02a7bb2e32beaf785a100e"
+		 "014cb63097fc7dbda3edf53eb09802237961cbb4c9e9abd705f23b86511b0a69"
+		 "10e5d4cc0f67ed5cafac0f4252093d2119ee8b8cb449e7053273453c1a1eb7cc"
+		 "5c7720c63b729140ed88cf35413f36c728ab7c70f8cd8422d9ee1cedeb618de5"
+		 "34cf3305b35e3a8132a0b1bdf2c67623bc2cb05b125f8d7d26bd51fd16d547ec"
+		 default))
+ '(ignored-local-variable-values '((cider-shadow-cljs-default-options . "app")))
  '(package-selected-packages
-	 '(obsidian prettier exec-path-from-shell tree-sitter-langs add-node-modules-path nvm svelete-mode ag which-key markdown-mode expand-region smartparens counsel ivy doom-themes)))
+	 '(obsidian prettier exec-path-from-shell tree-sitter-langs
+							add-node-modules-path nvm svelete-mode ag which-key
+							markdown-mode expand-region smartparens counsel ivy
+							doom-themes))
+ '(safe-local-variable-values
+	 '((tp--master-file
+			. "/home/jack/Documents/resumes/resume-2025-08-06.typ"))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

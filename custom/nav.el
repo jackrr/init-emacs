@@ -21,21 +21,31 @@
 
 (use-package projectile
   :straight t
-	:init
-	(projectile-mode +1)
+	;; :init
+	;; (projectile-mode +1)
 	:bind (:map projectile-mode-map
 							("C-c p" . projectile-command-map)))
+;; https://github.com/joaotavora/eglot/discussions/1436
+(add-hook 'after-init-hook 'projectile-mode)
 
 (use-package magit
   :straight t)
 
-(use-package dashboard
-  :straight t
-  :init
-  (setq dashboard-projects-backend 'projectile)
-  :config
-  (dashboard-setup-startup-hook))
+(use-package magit-todos
+	:straight t
+	:after magit
+	:config (magit-todos-mode 1))
 
+;; (use-package dashboard
+;;   :straight t
+;;   :init
+;;   (setq dashboard-projects-backend 'projectile)
+;;   :config
+;;   (dashboard-setup-startup-hook))
+
+(use-package avy
+	:straight t
+	:bind (("C-'" . avy-goto-char-2)))
 
 ;; (use-package obsidian
 ;;   :straight t
@@ -47,14 +57,14 @@
 
 ;; Want to try, but don't want to give these rich as fuck AI companies
 ;; more money for an API key. They're already getting my data...
-;; (use-package aidermacs
-;; 	:straight t
-;;   :bind ("C-c a" . aidermacs-transient-menu)
-;;   :custom
-;; 	;; See the Configuration section below
-;;   (aidermacs-use-architect-mode t)
-;;   (aidermacs-default-model "openai/o4-mini")
-;; 	)
+(use-package aidermacs
+	:straight t
+  :bind ("C-c a" . aidermacs-transient-menu)
+  :custom
+	;; See the Configuration section below
+  (aidermacs-use-architect-mode t)
+  (aidermacs-default-model "sonnet")
+	)
 
 ;; Allow backups, but store away from source code
 (setq backup-directory-alist '((".*" . "~/.config/emacs/backups")))

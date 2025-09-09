@@ -32,8 +32,11 @@
 	:config
 	(setq company-idle-delay 0.1
 				company-minimum-prefix-length 1)
-	:init
-	(global-company-mode))
+	;; :init
+	;; (global-company-mode)
+	)
+;; https://github.com/joaotavora/eglot/discussions/1436
+(add-hook 'after-init-hook 'global-company-mode)
 
 ;; Cannot use corfu :sob: because it crashes w/ LSP
 ;; (use-package corfu
