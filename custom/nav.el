@@ -55,15 +55,14 @@
 ;;   :custom
 ;;   (obsidian-directory "~/Documents/obsidian"))
 
-;; Want to try, but don't want to give these rich as fuck AI companies
-;; more money for an API key. They're already getting my data...
 (use-package aidermacs
 	:straight t
   :bind ("C-c a" . aidermacs-transient-menu)
   :custom
 	;; See the Configuration section below
   (aidermacs-use-architect-mode t)
-  (aidermacs-default-model "sonnet")
+  ;; (aidermacs-default-model "sonnet")
+	(aidermacs-default-model "ollama_chat/qwen2.5-coder:latest")
 	)
 
 ;; Allow backups, but store away from source code

@@ -98,6 +98,7 @@
 					 elisp-mode
 					 json-mode
 					 markdown-mode
+					 python-ts-mode
 					 rust-ts-mode
 					 typst-ts-mode
 					 yaml-mode) . eglot-ensure))
