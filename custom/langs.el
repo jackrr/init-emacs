@@ -162,6 +162,10 @@
 (use-package typescript-mode
 	:straight t)
 
+(use-package pyvenv
+	:straight t
+	:hook (python-ts-mode . pyvenv-activate-projectile))
+
 ;; Haskell / tidal / supercollider
 (use-package sclang
 	:straight '(sclang :type git :host github :repo "supercollider/scel" :files ("el/*.el")))
@@ -221,6 +225,11 @@
   (interactive)
   (message "Evaluated buffer")
   (eval-buffer))
+
+(defun pyvenv-activate-projectile ()
+	"Activates virtualenv via pyvenv at projectile project root for buffer."
+	(interactive)
+	(pyvenv-activate (concat (projectile-project-root) ".venv")))
 
 (define-key emacs-lisp-mode-map (kbd "C-c C-c") #'mp-elisp-mode-eval-buffer)
 (define-key lisp-interaction-mode-map (kbd "C-c C-c") #'mp-elisp-mode-eval-buffer)

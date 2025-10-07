@@ -46,7 +46,8 @@
   :hook (prog-mode . format-all-mode)
 	:config
 	(setq-default format-all-formatters
-								'(("Rust" (rustfmt "--edition" "2024")))))
+								'(("Rust" (rustfmt "--edition" "2024"))
+									("Python" (black)))))
 
 ;; Make typing/yanking replace instead of prepend to region
 (delete-selection-mode 1)
@@ -63,9 +64,9 @@
     (if (region-active-p)
         (setq beg (region-beginning) end (region-end))
       (setq beg (line-beginning-position) end (line-end-position)))
-    (comment-or-uncomment-region beg end)))
+    (comment-or-uncomment-region beg end))
 
 
-(provide 'text-manipulation)
+	(provide 'text-manipulation))
 
 ;;; text-manipulation.el ends here
