@@ -92,15 +92,13 @@
 (setq read-process-output-max (* 10 1024 1024)) ;; 10mb
 (use-package eglot
 	:straight t
-	:hook (((
-					 ;; clojure-mode
-					 ;; clojurescript-mode
-					 elisp-mode
+	:hook (((elisp-mode
 					 json-mode
 					 markdown-mode
 					 python-ts-mode
 					 rust-ts-mode
 					 typst-ts-mode
+					 svelte-mode
 					 yaml-mode) . eglot-ensure))
 	:bind (:map eglot-mode-map
 							("C-c c d" . xref-find-definitions)
@@ -114,6 +112,8 @@
 	;; multiple lsp for a buffer
   (add-to-list 'eglot-server-programs
 							 '(markdown-mode . ("harper-ls" "--stdio")))
+	(add-to-list 'eglot-server-programs
+							 '(svelte-mode . ("bun" "x" "svelteserver" "--stdio")))
 	(add-to-list 'eglot-server-programs
 							 '(yaml-mode . ("harper-ls" "--stdio")))
 	(add-to-list 'eglot-server-programs
