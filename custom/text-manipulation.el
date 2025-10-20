@@ -49,6 +49,8 @@
 								'(("Rust" (rustfmt "--edition" "2024"))
 									("Python" (black))
 									("Javascript" prettier)
+                  ("TypeScript" prettier)
+									("TSX" prettier)
 									("Typescript" prettier))))
 
 ;; Make typing/yanking replace instead of prepend to region

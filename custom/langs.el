@@ -101,8 +101,8 @@
 					 typst-ts-mode
 					 svelte-mode
 					 typescript-ts-mode
-					 tsx-mode
-					 yaml-mode) . eglot-ensure))
+					 tsx-ts-mode
+           yaml-mode) . eglot-ensure))
 	:bind (:map eglot-mode-map
 							("C-c c d" . xref-find-definitions)
 							("C-c c r" . xref-find-references)
@@ -115,12 +115,14 @@
 	;; multiple lsp for a buffer
   (add-to-list 'eglot-server-programs
 							 '(markdown-mode . ("harper-ls" "--stdio")))
-	(add-to-list 'eglot-server-programs
+  (add-to-list 'eglot-server-programs
 							 '(svelte-mode . ("bun" "x" "svelteserver" "--stdio")))
   (add-to-list 'eglot-server-programs
 							 '(yaml-mode . ("harper-ls" "--stdio")))
+  (add-to-list 'eglot-server-programs
+							 '(tsx-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
 	(add-to-list 'eglot-server-programs
-							 '(tsx-mode . ("typescript-language-server" "--stdio")))
+							 '(typescript-mode . ("bun" "x" "typescript-language-server" "--stdio")))
 	(add-to-list 'eglot-server-programs
 							 '(typst-ts-mode . ("lspx" "--lsp" "tinymist" "--lsp" "harper-ls --stdio"))))
 
@@ -134,15 +136,9 @@
 (use-package typescript-mode
 	:straight t)
 
-;; This is a hack to make eglot use typescriptreact langserver variant
-;; The auto-mode-alist prepend has to come after (use-package typescript-mode ...)
-;; to ensure that this "mode" takes preiority for .tsx files
-(define-derived-mode tsx-mode typescript-ts-mode "TSX"
-	"A major mode derived from 'typescript-ts-mode', for editing .tsx files with eglot.")
-
 (setq auto-mode-alist
 			(append
-			 '(("\\.tsx\\'" . tsx-mode))
+			 '(("\\.tsx\\'" . tsx-ts-mode))
 			 auto-mode-alist))
 
 (use-package pyvenv
