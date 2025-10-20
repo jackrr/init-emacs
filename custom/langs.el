@@ -52,7 +52,7 @@
            '((python-mode . python-ts-mode)
              (css-mode . css-ts-mode)
              (typescript-mode . typescript-ts-mode)
-						 (javascript-mode . js-ts-mode)
+             (javascript-mode . js-ts-mode)
              (bash-mode . bash-ts-mode)
 						 ;; (lua-mode . lua-ts-mode)
              (conf-toml-mode . toml-ts-mode)
@@ -90,6 +90,7 @@
 ;; added these for lsp. do these also apply to eglot?
 (setq gc-cons-threshold 100000000)
 (setq read-process-output-max (* 10 1024 1024)) ;; 10mb
+
 (use-package eglot
 	:straight t
 	:hook (((elisp-mode
@@ -99,6 +100,8 @@
 					 rust-ts-mode
 					 typst-ts-mode
 					 svelte-mode
+					 typescript-ts-mode
+					 tsx-mode
 					 yaml-mode) . eglot-ensure))
 	:bind (:map eglot-mode-map
 							("C-c c d" . xref-find-definitions)
@@ -114,43 +117,12 @@
 							 '(markdown-mode . ("harper-ls" "--stdio")))
 	(add-to-list 'eglot-server-programs
 							 '(svelte-mode . ("bun" "x" "svelteserver" "--stdio")))
-	(add-to-list 'eglot-server-programs
+  (add-to-list 'eglot-server-programs
 							 '(yaml-mode . ("harper-ls" "--stdio")))
 	(add-to-list 'eglot-server-programs
+							 '(tsx-mode . ("typescript-language-server" "--stdio")))
+	(add-to-list 'eglot-server-programs
 							 '(typst-ts-mode . ("lspx" "--lsp" "tinymist" "--lsp" "harper-ls --stdio"))))
-;; Old lsp mappings:
-;; 				 ((svelte-mode
-;; 					 tsx-ts-mode
-;; 					 typescript-ts-mode
-;; 					 js-ts-mode
-;; 					 haskell-tidal-mode
-;; 					 haskell-ts-mode
-;; 					 ;; clojure-mode
-;; 					 lua-mode
-;; 					 go-ts-mode
-;; 					 ruby-ts-mode
-;; 					 typst-ts-mode
-;; 					 clojurescript-mode) . lsp-deferred))
-
-;; (use-package lsp-eslint
-;;   :demand t
-;;   :after lsp-mode)
-
-;; (use-package lsp-tailwindcss
-;;   :straight '(lsp-tailwindcss :type git :host github :repo "merrickluo/lsp-tailwindcss")
-;; 	:after lsp-mode
-;;   :init
-;; 	(setq lsp-tailwindcss-add-on-mode t
-;; 				lsp-tailwindcss-server-version "0.14.8"
-;; 				lsp-tailwindcss-skip-config-check t
-;; 				lsp-tailwindcss-major-modes
-;; 				'(css-ts-mode
-;; 					typescript-mode
-;; 					typescript-ts-mode
-;; 					svelte-mode)))
-
-;; (use-package lsp-haskell
-;; 	:straight t)
 
 (use-package markdown-mode
   :straight t)
@@ -161,6 +133,17 @@
 ;; Needed for svelte mode, no treesitter support for svelte (at this time)
 (use-package typescript-mode
 	:straight t)
+
+;; This is a hack to make eglot use typescriptreact langserver variant
+;; The auto-mode-alist prepend has to come after (use-package typescript-mode ...)
+;; to ensure that this "mode" takes preiority for .tsx files
+(define-derived-mode tsx-mode typescript-ts-mode "TSX"
+	"A major mode derived from 'typescript-ts-mode', for editing .tsx files with eglot.")
+
+(setq auto-mode-alist
+			(append
+			 '(("\\.tsx\\'" . tsx-mode))
+			 auto-mode-alist))
 
 (use-package pyvenv
 	:straight t

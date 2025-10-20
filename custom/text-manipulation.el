@@ -47,7 +47,9 @@
 	:config
 	(setq-default format-all-formatters
 								'(("Rust" (rustfmt "--edition" "2024"))
-									("Python" (black)))))
+									("Python" (black))
+									("Javascript" prettier)
+									("Typescript" prettier))))
 
 ;; Make typing/yanking replace instead of prepend to region
 (delete-selection-mode 1)
