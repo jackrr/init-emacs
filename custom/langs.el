@@ -60,7 +60,8 @@
 						 (css-mode . css-ts-mode)
              (json-mode . json-ts-mode)
 						 (haskell-mode . haskell-ts-mode)
-             (js-json-mode . json-ts-mode)))
+             (js-json-mode . json-ts-mode)
+						 (yaml-mode . yaml-ts-mode)))
     (add-to-list 'major-mode-remap-alist mapping))
   :config
   (mp-setup-install-grammars)
@@ -121,8 +122,10 @@
 							 '(yaml-mode . ("harper-ls" "--stdio")))
   (add-to-list 'eglot-server-programs
 							 '(tsx-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
-	(add-to-list 'eglot-server-programs
+  (add-to-list 'eglot-server-programs
 							 '(typescript-mode . ("bun" "x" "typescript-language-server" "--stdio")))
+	(add-to-list 'eglot-server-programs
+							 '(typescript-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
 	(add-to-list 'eglot-server-programs
 							 '(typst-ts-mode . ("lspx" "--lsp" "tinymist" "--lsp" "harper-ls --stdio"))))
 
