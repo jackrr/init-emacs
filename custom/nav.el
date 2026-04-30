@@ -21,12 +21,11 @@
 
 (use-package projectile
   :straight t
-	;; :init
-	;; (projectile-mode +1)
+	:demand t
 	:bind (:map projectile-mode-map
-							("C-c p" . projectile-command-map)))
-;; https://github.com/joaotavora/eglot/discussions/1436
-(add-hook 'after-init-hook 'projectile-mode)
+							("C-c p" . projectile-command-map))
+	;; https://github.com/joaotavora/eglot/discussions/1436
+	:hook (after-init . projectile-mode))
 
 (use-package magit
   :straight t)
@@ -114,10 +113,14 @@
 
 (global-set-key (kbd "C-M-t") 'launch-tidal)
 
-(defun open-project ()
-	"Projectile switch project, but opens in new perspective."
+(defun open-project (&optional project-path)
+	"Projectile switch project, but opens in new perspective.
+If PROJECT-PATH is non-nil, switch directly to that project root."
 	(interactive)
-	(projectile-switch-project)
+	(if project-path
+			(let ((projectile-switch-project-action #'projectile-find-file))
+				(projectile-switch-project-by-name project-path))
+		(projectile-switch-project))
 	(let ((proj (projectile-project-name))
 				(proj-buffer (buffer-name)))
 		(persp-switch proj)
@@ -125,6 +128,69 @@
 		(switch-to-buffer proj-buffer)
 		;; (neotree-toggle)
 		(switch-to-buffer proj-buffer)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Recent-projects startup buffer
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defvar recent-projects-buffer-name "*Projects*")
+
+(define-derived-mode recent-projects-mode special-mode "RecentProjects"
+	"Major mode for the recent projects landing buffer."
+	(setq-local cursor-type 'box
+							truncate-lines t))
+
+(defun recent-projects--open-at-point ()
+	"Open the project on the current line."
+	(interactive)
+	(let ((path (get-text-property (line-beginning-position) 'project-path)))
+		(when path
+			(open-project path))))
+
+(define-key recent-projects-mode-map (kbd "RET") #'recent-projects--open-at-point)
+(define-key recent-projects-mode-map (kbd "n")   #'next-line)
+(define-key recent-projects-mode-map (kbd "p")   #'previous-line)
+(define-key recent-projects-mode-map (kbd "g")   #'recent-projects-show)
+(define-key recent-projects-mode-map (kbd "q")   #'quit-window)
+
+(defun recent-projects-show ()
+	"Show a buffer listing recent projectile projects."
+	(interactive)
+	(require 'projectile)
+	;; `projectile-known-projects' is normally loaded when `projectile-mode'
+	;; turns on (after-init-hook). This buffer renders earlier than that via
+	;; `initial-buffer-choice', so make sure the list is populated.
+	(when (fboundp 'projectile-load-known-projects)
+		(projectile-load-known-projects))
+	(let ((buf (get-buffer-create recent-projects-buffer-name)))
+		(with-current-buffer buf
+			(let ((inhibit-read-only t))
+				(erase-buffer)
+				(insert (propertize "Recent projects\n\n"
+														 'face '(:height 1.4 :weight bold)))
+				(insert (propertize "  RET open  ·  n/p move  ·  g refresh  ·  q quit\n\n"
+														 'face 'shadow))
+				(let ((projects (and (boundp 'projectile-known-projects)
+														 projectile-known-projects)))
+					(if (null projects)
+							(insert "  (no known projects yet — C-M-o to add one)\n")
+						(dolist (path projects)
+							(let* ((name (file-name-nondirectory
+														 (directory-file-name path)))
+										 (line (format "  %-28s  %s\n"
+																			 (propertize name 'face 'font-lock-function-name-face)
+																			 (propertize (abbreviate-file-name path) 'face 'shadow))))
+								(insert (propertize line 'project-path path)))))))
+			(recent-projects-mode)
+			(goto-char (point-min))
+			(forward-line 3))
+		(switch-to-buffer buf)))
+
+;; Show the projects buffer at startup instead of *scratch*
+(setq initial-buffer-choice
+			(lambda ()
+				(recent-projects-show)
+				(get-buffer recent-projects-buffer-name)))
 
 (defun revert-buffer-no-confirm ()
   "Revert buffer without confirmation."

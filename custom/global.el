@@ -10,7 +10,10 @@
       inhibit-startup-echo-area-message t)
 (setq kill-buffer-query-functions
   (remq 'process-kill-buffer-query-function
-         kill-buffer-query-functions))
+        kill-buffer-query-functions))
+
+;; Free up shift+space binding
+(setq shift-select-mode nil)
 
 (provide 'global)
 

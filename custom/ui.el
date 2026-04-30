@@ -90,6 +90,39 @@
 (use-package nerd-icons
 	:straight t)
 
+(use-package doom-modeline
+	:straight t
+	:after nerd-icons
+	:init (doom-modeline-mode 1)
+	:custom
+	;; Keep things short and legible
+	(doom-modeline-height 28)
+	(doom-modeline-bar-width 3)
+	(doom-modeline-icon (display-graphic-p))
+	(doom-modeline-major-mode-icon t)
+	(doom-modeline-major-mode-color-icon t)
+	(doom-modeline-buffer-state-icon t)
+	(doom-modeline-buffer-modification-icon t)
+	;; Show just the file name, not the full path
+	(doom-modeline-buffer-file-name-style 'file-name)
+	;; Hide the noisy bits
+	(doom-modeline-minor-modes nil)
+	(doom-modeline-enable-word-count nil)
+	(doom-modeline-buffer-encoding nil)
+	(doom-modeline-indent-info nil)
+	(doom-modeline-vcs-max-length 20)
+	(doom-modeline-lsp nil)
+	(doom-modeline-github nil)
+	(doom-modeline-mu4e nil)
+	(doom-modeline-irc nil)
+	(doom-modeline-persp-name t)
+	(doom-modeline-display-default-persp-name nil)
+	(doom-modeline-persp-icon t))
+
+;; Hide minor-mode lighters from the default modeline as a fallback,
+;; in case doom-modeline isn't loaded yet.
+(use-package diminish :straight t)
+
 (use-package neotree
 	:straight t
 	:bind ("C-c t" . neotree-toggle)
