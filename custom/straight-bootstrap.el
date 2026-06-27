@@ -1,5 +1,7 @@
 ;;; straight-bootstrap.el --- Configure straight with use-package
 
+;; -*- lexical-binding: t -*-
+
 ;;; Commentary:
 ;;
 

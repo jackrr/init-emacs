@@ -1,5 +1,7 @@
 ;;; finding.el --- Search and completion stuff
 
+;; -*- lexical-binding: t -*-
+
 ;;; Commentary:
 
 ;;; Code:

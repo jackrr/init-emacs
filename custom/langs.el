@@ -1,84 +1,28 @@
 ;;; langs.el --- LSP, treesitter and language support
+;;; Commentary:
+
+;; Lexical binding cookie
+;; -*- lexical-binding: t -*-
+
+;;; Code:
+
+(use-package treesit-auto
+  :straight t
+  :config
+  (setq treesit-auto-install 'always)
+  (global-treesit-auto-mode))
+
+;; Note: treesit-auto handles grammar installation automatically.
+;; treesit-auto-install-grammar and treesit-enabled-modes were EMACS-31 preview features
+;; that were merged upstream into Emacs 30+ and are no longer needed as standalone functions.
+;; Let's just use (use-package treesit-auto ...) config above to handle it.
+
+(defvar /langs-gc-threshold 100000000)
 
 ;;; Commentary:
 
 ;;; Code:
-(use-package treesit
-  :mode (("\\.tsx\\'" . tsx-ts-mode)
-				 ("\\.json\\'" . js-json-mode)
-         ("\\.jsonc\\'" . js-json-mode)
-				 ("\\.rs\\'" . rust-ts-mode)
-				 )
-  :preface
-  (defun mp-setup-install-grammars ()
-    "Install Tree-sitter grammars if they are absent."
-    (interactive)
-    (dolist (grammar
-             ;; Note the version numbers. These are the versions that
-             ;; are known to work with Combobulate *and* Emacs.
-             '((bash . ("https://github.com/tree-sitter/tree-sitter-bash" "v0.23.3"))
-							 (css . ("https://github.com/tree-sitter/tree-sitter-css" "v0.20.0"))
-               (go . ("https://github.com/tree-sitter/tree-sitter-go" "v0.20.0"))
-							 (gomod . ("https://github.com/camdencheek/tree-sitter-go-mod" "v1.1.0"))
-               (html . ("https://github.com/tree-sitter/tree-sitter-html" "v0.20.1"))
-               (javascript . ("https://github.com/tree-sitter/tree-sitter-javascript" "v0.20.1" "src"))
-							 (haskell . ("https://github.com/tree-sitter/tree-sitter-haskell" "v0.23.1"))
-               (json . ("https://github.com/tree-sitter/tree-sitter-json" "v0.20.2"))
-							 ;; (lua . ("https://github.com/tree-sitter-grammars/tree-sitter-lua" "v0.4.0"))
-               (markdown . ("https://github.com/ikatyang/tree-sitter-markdown" "v0.7.1"))
-               (python . ("https://github.com/tree-sitter/tree-sitter-python" "v0.20.4"))
-							 (ruby . ("https://github.com/tree-sitter/tree-sitter-ruby" "v0.23.1"))
-               (rust . ("https://github.com/tree-sitter/tree-sitter-rust" "v0.21.2"))
-               (toml . ("https://github.com/tree-sitter/tree-sitter-toml" "v0.5.1"))
-               (tsx . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.20.3" "tsx/src"))
-							 (typst . ("https://github.com/uben0/tree-sitter-typst"))
-               (typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.20.3" "typescript/src"))
-							 (svelte . ("https://github.com/tree-sitter-grammars/tree-sitter-svelte" "v1.0.2"))
-               (yaml . ("https://github.com/ikatyang/tree-sitter-yaml" "v0.5.0"))))
-      (add-to-list 'treesit-language-source-alist grammar)
-      ;; Only install `grammar' if we don't already have it
-      ;; installed. However, if you want to *update* a grammar then
-      ;; this obviously prevents that from happening.
-      (unless (treesit-language-available-p (car grammar))
-        (treesit-install-language-grammar (car grammar)))))
 
-  ;; Optional. Combobulate works in both xxxx-ts-modes and
-  ;; non-ts-modes.
-
-  ;; You can remap major modes with `major-mode-remap-alist'. Note
-  ;; that this does *not* extend to hooks! Make sure you migrate them
-  ;; also
-  (dolist (mapping
-           '((python-mode . python-ts-mode)
-             (css-mode . css-ts-mode)
-             (typescript-mode . typescript-ts-mode)
-             (javascript-mode . js-ts-mode)
-             (bash-mode . bash-ts-mode)
-						 ;; (lua-mode . lua-ts-mode)
-             (conf-toml-mode . toml-ts-mode)
-             (go-mode . go-ts-mode)
-						 (css-mode . css-ts-mode)
-             (json-mode . json-ts-mode)
-						 (haskell-mode . haskell-ts-mode)
-             (js-json-mode . json-ts-mode)
-						 (yaml-mode . yaml-ts-mode)))
-    (add-to-list 'major-mode-remap-alist mapping))
-  :config
-  (mp-setup-install-grammars)
-  ;; Do not forget to customize Combobulate to your liking:
-  ;;
-  ;;  M-x customize-group RET combobulate RET
-  ;;
-  (use-package combobulate
-    :straight t
-    :custom
-    ;; You can customize Combobulate's key prefix here.
-    ;; Note that you may have to restart Emacs for this to take effect!
-    (combobulate-key-prefix "C-c o")
-    :hook ((prog-mode . combobulate-mode))
-    ;; Amend this to the directory where you keep Combobulate's source
-    ;; code.
-    :load-path ("path-to-git-checkout-of-combobulate")))
 
 
 (use-package flycheck

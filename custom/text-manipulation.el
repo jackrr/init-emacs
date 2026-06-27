@@ -1,5 +1,7 @@
 ;;; text-manipulation.el --- Working with text ... yah i know
 
+;; -*- lexical-binding: t -*-
+
 ;;; Commentary:
 
 ;;; Code:

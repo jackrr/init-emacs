@@ -1,3 +1,5 @@
+;; -*- lexical-binding: t -*-
+
 ;; Use straight instead of package
 (setq package-enable-at-startup nil)
 

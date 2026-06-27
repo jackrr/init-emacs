@@ -1,5 +1,7 @@
 ;;; ui.el --- Vis stuff
 
+;; -*- lexical-binding: t -*-
+
 ;;; Commentary:
 
 ;;; Code:

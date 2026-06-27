@@ -1,5 +1,8 @@
 ;;; init.el --- The good stuff
 
+;; Lexical binding cookie
+;; -*- lexical-binding: t -*-
+
 ;;; Commentary:
 
 ;;; Code:
