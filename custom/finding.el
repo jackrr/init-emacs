@@ -6,10 +6,10 @@
 
 ;;; Code:
 (use-package ag
-  :straight t)
+  :ensure t)
 
 (use-package ivy
-  :straight t
+  :ensure t
   :init
   (setq ivy-use-virtual-buffers t)
   (setq ivy-count-format "(%d/%d) ")
@@ -26,10 +26,10 @@
   ("C-c V" . ivy-pop-view))
 
 (use-package counsel
-  :straight t)
+  :ensure t)
 
 (use-package company
-	:straight t
+	:ensure t
 	:bind
 	("C-<tab>" . company-complete)
 	:config
@@ -43,7 +43,7 @@
 
 ;; Cannot use corfu :sob: because it crashes w/ LSP
 ;; (use-package corfu
-;;   :straight t
+;;   :ensure t
 ;;   ;; Optional customizations
 ;;   :custom
 ;;   (corfu-cycle t)                 ; Allows cycling through candidates

@@ -7,7 +7,7 @@
 ;;; Code:
 
 (use-package treesit-auto
-  :straight t
+  :ensure t
   :config
   (setq treesit-auto-install 'always)
   (global-treesit-auto-mode))
@@ -26,7 +26,7 @@
 
 
 (use-package flycheck
-  :straight t
+  :ensure t
   :init (global-flycheck-mode)
   :bind (:map flycheck-mode-map
 							("M-n" . flycheck-next-error) ; optional but recommended error navigation
@@ -37,7 +37,7 @@
 (setq read-process-output-max (* 10 1024 1024)) ;; 10mb
 
 (use-package eglot
-	:straight t
+	:ensure t
 	:hook (((elisp-mode
 					 json-mode
 					 markdown-mode
@@ -74,14 +74,14 @@
 							 '(typst-ts-mode . ("lspx" "--lsp" "tinymist" "--lsp" "harper-ls --stdio"))))
 
 (use-package markdown-mode
-  :straight t)
+  :ensure t)
 
 (use-package svelte-mode
-	:straight t)
+	:ensure t)
 
 ;; Needed for svelte mode, no treesitter support for svelte (at this time)
 (use-package typescript-mode
-	:straight t)
+	:ensure t)
 
 (setq auto-mode-alist
 			(append
@@ -89,51 +89,51 @@
 			 auto-mode-alist))
 
 (use-package pyvenv
-	:straight t
+	:ensure t
 	:hook (python-ts-mode . pyvenv-activate-projectile))
 
 ;; Haskell / tidal / supercollider
 (use-package sclang
-	:straight '(sclang :type git :host github :repo "supercollider/scel" :files ("el/*.el")))
+	:ensure '(sclang :type git :host github :repo "supercollider/scel" :files ("el/*.el")))
 
 (use-package haskell-ts-mode
-	:straight t)
+	:ensure t)
 
 (use-package tidal
-	:straight t)
+	:ensure t)
 
 (use-package clojure-mode
-	:straight t)
+	:ensure t)
 
 (use-package cider
-	:straight t)
+	:ensure t)
 
 (use-package go-ts-mode)
 
 (use-package ruby-ts-mode)
 
 (use-package typst-ts-mode
-  :straight '(:type git :host codeberg :repo "meow_king/typst-ts-mode")
+  :ensure '(:type git :host codeberg :repo "meow_king/typst-ts-mode")
   :custom
   (typst-ts-mode-watch-options "--open"))
 
 (use-package dockerfile-mode
-	:straight t)
+	:ensure t)
 
 (use-package docker-compose-mode
-	:straight t)
+	:ensure t)
 
 (use-package lua-mode
-	:straight t)
+	:ensure t)
 
 (use-package wgsl-mode
-	:straight t)
+	:ensure t)
 
 (use-package nix-mode
-	:straight t)
+	:ensure t)
 
 (use-package pandoc-mode
-	:straight t
+	:ensure t
 	:hook ((markdown-mode . pandoc-mode))
 	;; FIXME: These don't work...
 	;; :config
@@ -143,7 +143,7 @@
 	)
 
 (use-package mermaid-mode
-	:straight t)
+	:ensure t)
 
 ; From https://www.masteringemacs.org/article/evaluating-elisp-emacs
 (defun mp-elisp-mode-eval-buffer ()

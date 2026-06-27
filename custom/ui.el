@@ -7,7 +7,7 @@
 ;;; Code:
 
 (use-package doom-themes
-  :straight t
+  :ensure t
 	:bind
 	("C-h t" . load-theme)
 	:init
@@ -22,12 +22,12 @@
 	(doom-themes-org-config))
 
 (use-package solaire-mode
-	:straight t
+	:ensure t
 	:config
 	(solaire-global-mode +1))
 
 (use-package ultra-scroll
-	:straight t
+	:ensure t
 	:init
 	(setq scroll-margin 0
 				scroll-conservatively 3
@@ -36,7 +36,7 @@
 	(ultra-scroll-mode 1))
 
 (use-package ligature
-	:straight t
+	:ensure t
   :config
   ;; Enable the "www" ligature in every possible major mode
   (ligature-set-ligatures
@@ -72,7 +72,7 @@
   (global-ligature-mode t))
 
 (use-package hl-todo
-	:straight t
+	:ensure t
   :hook (prog-mode . hl-todo-mode)
   :config
   (setq hl-todo-highlight-punctuation ":"
@@ -90,10 +90,10 @@
 	(set-frame-font "FiraCode Nerd Font 12" nil t))
 
 (use-package nerd-icons
-	:straight t)
+	:ensure t)
 
 (use-package doom-modeline
-	:straight t
+	:ensure t
 	:after nerd-icons
 	:init (doom-modeline-mode 1)
 	:custom
@@ -123,10 +123,10 @@
 
 ;; Hide minor-mode lighters from the default modeline as a fallback,
 ;; in case doom-modeline isn't loaded yet.
-(use-package diminish :straight t)
+(use-package diminish :ensure t)
 
 (use-package neotree
-	:straight t
+	:ensure t
 	:bind ("C-c t" . neotree-toggle)
 	:config
 	(setq

@@ -6,7 +6,7 @@
 
 ;;; Code:
 (use-package perspective
-	:straight t
+	:ensure t
 	:bind
 	(("C-x C-b" . persp-list-buffers)
 	 ("C-c w w" . persp-next))
@@ -17,12 +17,12 @@
 	(persp-mode))
 
 (use-package which-key
-  :straight t
+  :ensure t
   :config
   (which-key-mode +1))
 
 (use-package projectile
-  :straight t
+  :ensure t
 	:demand t
 	:bind (:map projectile-mode-map
 							("C-c p" . projectile-command-map))
@@ -30,26 +30,26 @@
 	:hook (after-init . projectile-mode))
 
 (use-package magit
-  :straight t)
+  :ensure t)
 
 (use-package magit-todos
-	:straight t
+	:ensure t
 	:after magit
 	:config (magit-todos-mode 1))
 
 ;; (use-package dashboard
-;;   :straight t
+;;   :ensure t
 ;;   :init
 ;;   (setq dashboard-projects-backend 'projectile)
 ;;   :config
 ;;   (dashboard-setup-startup-hook))
 
 (use-package avy
-	:straight t
+	:ensure t
 	:bind (("C-'" . avy-goto-char-2)))
 
 ;; (use-package obsidian
-;;   :straight t
+;;   :ensure t
 ;;   :config
 ;;   (global-obsidian-mode t)
 ;;   (obsidian-backlinks-mode t)
@@ -57,7 +57,7 @@
 ;;   (obsidian-directory "~/Documents/obsidian"))
 
 (use-package aidermacs
-	:straight t
+	:ensure t
   :bind ("C-c a" . aidermacs-transient-menu)
   :custom
 	;; See the Configuration section below

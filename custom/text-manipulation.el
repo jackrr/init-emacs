@@ -6,11 +6,11 @@
 
 ;;; Code:
 (use-package expand-region
-  :straight t
+  :ensure t
   :bind ("C-=" . er/expand-region))
 
 (use-package smartparens
-  :straight t
+  :ensure t
   :hook ((prog-mode text-mode markdown-mode)
 				 ((clojure-mode
 					 clojurescript-mode
@@ -38,12 +38,12 @@
 	 ("C-M-t" . sp-transpose-sexp)))
 
 (use-package emojify
-	:straight t
+	:ensure t
 	:hook (after-init . global-emojify-mode)
 	:bind (("C-M-e" . emojify-insert-emoji)))
 
 (use-package format-all
-	:straight t
+	:ensure t
   :commands format-all-mode
   :hook (prog-mode . format-all-mode)
 	:config
