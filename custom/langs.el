@@ -1,8 +1,7 @@
+;; -*- lexical-binding: t -*-
+
 ;;; langs.el --- LSP, treesitter and language support
 ;;; Commentary:
-
-;; Lexical binding cookie
-;; -*- lexical-binding: t -*-
 
 ;;; Code:
 
@@ -76,28 +75,34 @@
 (use-package markdown-mode
   :ensure t)
 
+
 (use-package svelte-mode
-	:ensure t)
+  :ensure t
+  :defer t  ;; add this if not present
+  :config
+  ;; fix face inheritance cycle
+  (with-eval-after-load 'gnus
+    (require 'svelte-mode)))
 
 ;; Needed for svelte mode, no treesitter support for svelte (at this time)
-(use-package typescript-mode
-	:ensure t)
+;; (use-package typescript-mode
+;; 	:ensure t)
 
-(setq auto-mode-alist
-			(append
-			 '(("\\.tsx\\'" . tsx-ts-mode))
-			 auto-mode-alist))
+;; (setq auto-mode-alist
+;; 			(append
+;; 			 '(("\\.tsx\\'" . tsx-ts-mode))
+;; 			 auto-mode-alist))
 
 (use-package pyvenv
 	:ensure t
 	:hook (python-ts-mode . pyvenv-activate-projectile))
 
 ;; Haskell / tidal / supercollider
-(use-package sclang
-	:ensure '(sclang :type git :host github :repo "supercollider/scel" :files ("el/*.el")))
+;; (use-package sclang
+;; 	:ensure '(sclang :type git :host github :repo "supercollider/scel" :files ("el/*.el")))
 
-(use-package haskell-ts-mode
-	:ensure t)
+;; (use-package haskell-ts-mode
+;; 	:ensure t)
 
 (use-package tidal
 	:ensure t)
@@ -108,14 +113,9 @@
 (use-package cider
 	:ensure t)
 
-(use-package go-ts-mode)
+;; (use-package go-ts-mode)
 
-(use-package ruby-ts-mode)
-
-(use-package typst-ts-mode
-  :ensure '(:type git :host codeberg :repo "meow_king/typst-ts-mode")
-  :custom
-  (typst-ts-mode-watch-options "--open"))
+;; (use-package ruby-ts-mode)
 
 (use-package dockerfile-mode
 	:ensure t)

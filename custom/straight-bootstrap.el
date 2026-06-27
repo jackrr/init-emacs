@@ -1,9 +1,9 @@
-;;; straight-bootstrap.el --- Bootstrap straight.el -*- lexical-binding: t -*-
+;; -*- lexical-binding: t -*-
+
+;;; straight-bootstrap.el --- Bootstrap straight.el
 
 ;; This file bootstraps straight.el before any other package managers are loaded.
 ;; It must be loaded early in early-init.el or init.el.
-
-;; -*- lexical-binding: t -*-
 
  (defvar bootstrap-version)
   (let ((bootstrap-file
@@ -17,6 +17,8 @@
       (goto-char (point-max))
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
+
+(straight-register-package '(project :type built-in))
 
 ;; Install use-package
 (straight-use-package 'use-package)

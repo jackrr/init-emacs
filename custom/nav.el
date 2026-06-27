@@ -1,6 +1,6 @@
-;;; nav.el --- Nav stuff
-
 ;; -*- lexical-binding: t -*-
+
+;;; nav.el --- Nav stuff
 
 ;;; Commentary:
 

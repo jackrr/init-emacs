@@ -1,6 +1,6 @@
-;;; global.el --- Global emacs settings
-
 ;; -*- lexical-binding: t -*-
+
+;;; global.el --- Global emacs settings
 
 ;;; Commentary:
 ; Generally from: https://www.masteringemacs.org/article/disabling-prompts-emacs

@@ -1,6 +1,6 @@
-;;; text-manipulation.el --- Working with text ... yah i know
-
 ;; -*- lexical-binding: t -*-
+
+;;; text-manipulation.el --- Working with text ... yah i know
 
 ;;; Commentary:
 
@@ -70,9 +70,8 @@
     (if (region-active-p)
         (setq beg (region-beginning) end (region-end))
       (setq beg (line-beginning-position) end (line-end-position)))
-    (comment-or-uncomment-region beg end))
+    (comment-or-uncomment-region beg end)))
 
-
-	(provide 'text-manipulation))
+(provide 'text-manipulation)
 
 ;;; text-manipulation.el ends here
