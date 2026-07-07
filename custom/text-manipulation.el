@@ -49,7 +49,7 @@
 	:config
 	(setq-default format-all-formatters
 								'(("Rust" (rustfmt "--edition" "2024"))
-									("Python" (black))
+									("Python" (ruff))
 									("Javascript" prettier)
                   ("TypeScript" prettier)
 									("TSX" prettier)

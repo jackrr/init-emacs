@@ -35,6 +35,20 @@
 (setq gc-cons-threshold 100000000)
 (setq read-process-output-max (* 10 1024 1024)) ;; 10mb
 
+(defun /eglot-ts-ls (&optional _interactive _project)
+  "Contact for the TypeScript language server, most project-aware first.
+Prefer the project's own node_modules binary (matches its pinned
+version); else run via bun; else a global typescript-language-server."
+  (let* ((from (or buffer-file-name default-directory))
+         (nm (and from (locate-dominating-file from "node_modules")))
+         (local (and nm (expand-file-name
+                         "node_modules/.bin/typescript-language-server" nm))))
+    (cond
+     ((and local (file-executable-p local)) (list local "--stdio"))
+     ((executable-find "bun")
+      (list "bun" "x" "typescript-language-server" "--stdio"))
+     (t (list "typescript-language-server" "--stdio")))))
+
 (use-package eglot
 	:ensure t
 	:hook (((elisp-mode
@@ -60,16 +74,12 @@
 	;; multiple lsp for a buffer
   (add-to-list 'eglot-server-programs
 							 '(markdown-mode . ("harper-ls" "--stdio")))
-  ;; (add-to-list 'eglot-server-programs
-	;; 						 '(svelte-mode . ("bun" "x" "svelteserver" "--stdio")))
+  (add-to-list 'eglot-server-programs
+							 '(svelte-mode . ("bun" "x" "svelteserver" "--stdio")))
   (add-to-list 'eglot-server-programs
 							 '(yaml-mode . ("harper-ls" "--stdio")))
-	;; (add-to-list 'eglot-server-programs
-	;; 						 '(tsx-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
-  ;; (add-to-list 'eglot-server-programs
-	;; 						 '(typescript-mode . ("bun" "x" "typescript-language-server" "--stdio")))
-	;; (add-to-list 'eglot-server-programs
-	;; 						 '(typescript-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
+	(add-to-list 'eglot-server-programs
+							 '((typescript-ts-mode tsx-ts-mode typescript-mode) . /eglot-ts-ls))
 	(add-to-list 'eglot-server-programs
 							 '(typst-ts-mode . ("lspx" "--lsp" "tinymist" "--lsp" "harper-ls --stdio"))))
 
@@ -93,9 +103,6 @@
 ;; 			(append
 ;; 			 '(("\\.tsx\\'" . tsx-ts-mode))
 ;; 			 auto-mode-alist))
-
-(use-package poetry
-	:straight t)
 
 (use-package pyvenv
 	:ensure t
