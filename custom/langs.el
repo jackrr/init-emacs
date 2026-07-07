@@ -30,6 +30,22 @@
 							("M-n" . flymake-goto-next-error)
 							("M-p" . flymake-goto-prev-error)))
 
+;; flymake backends for modes eglot doesn't cover (each needs its CLI tool).
+(use-package flymake-shellcheck
+  :ensure t
+  :hook (((sh-mode bash-ts-mode) . flymake-shellcheck-load)
+         ((sh-mode bash-ts-mode) . flymake-mode)))
+
+(use-package flymake-hadolint
+  :ensure t
+  :hook ((dockerfile-mode . flymake-hadolint-setup)
+         (dockerfile-mode . flymake-mode)))
+
+(use-package flymake-sqlfluff
+  :ensure t
+  :hook ((sql-mode . flymake-sqlfluff-load)
+         (sql-mode . flymake-mode)))
+
 ;; added these for lsp. do these also apply to eglot?
 (setq gc-cons-threshold 100000000)
 (setq read-process-output-max (* 10 1024 1024)) ;; 10mb
