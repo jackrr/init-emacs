@@ -56,16 +56,6 @@
 ;;   :custom
 ;;   (obsidian-directory "~/Documents/obsidian"))
 
-(use-package aidermacs
-	:ensure t
-  :bind ("C-c a" . aidermacs-transient-menu)
-  :custom
-	;; See the Configuration section below
-  (aidermacs-use-architect-mode t)
-  ;; (aidermacs-default-model "sonnet")
-	(aidermacs-default-model "ollama_chat/qwen2.5-coder:latest")
-	)
-
 ;; Allow backups, but store away from source code
 (setq backup-directory-alist '((".*" . "~/.config/emacs/backups")))
 ;; Allow lock files, but store in tmp away from source code

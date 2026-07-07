@@ -11,7 +11,7 @@
 	:bind
 	("C-h t" . load-theme)
 	:init
-	(load-theme 'doom-monokai-octagon t)
+	(load-theme 'doom-ayu-mirage t)
   :config
   (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
         doom-themes-enable-italic t) ; if nil, italics is universally disabled
