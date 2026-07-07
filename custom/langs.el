@@ -24,16 +24,23 @@
 
 
 
-(use-package flycheck
-  :ensure t
-  :init (global-flycheck-mode)
-  :bind (:map flycheck-mode-map
-							("M-n" . flycheck-next-error) ; optional but recommended error navigation
-							("M-p" . flycheck-previous-error)))
+;; Diagnostics come from eglot -> flymake now (flycheck removed).
+(use-package flymake
+  :bind (:map flymake-mode-map
+							("M-n" . flymake-goto-next-error)
+							("M-p" . flymake-goto-prev-error)))
 
 ;; added these for lsp. do these also apply to eglot?
 (setq gc-cons-threshold 100000000)
 (setq read-process-output-max (* 10 1024 1024)) ;; 10mb
+
+;; Let pylsp lint via ruff (auto-uses the project's [tool.ruff] config) and
+;; disable its built-in pycodestyle/pyflakes/mccabe to avoid duplicates.
+(setq-default eglot-workspace-configuration
+              '(:pylsp (:plugins (:ruff (:enabled t)
+                                  :pycodestyle (:enabled :json-false)
+                                  :pyflakes (:enabled :json-false)
+                                  :mccabe (:enabled :json-false)))))
 
 (defun /eglot-ts-ls (&optional _interactive _project)
   "Contact for the TypeScript language server, most project-aware first.
