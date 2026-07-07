@@ -46,6 +46,22 @@
   :hook ((sql-mode . flymake-sqlfluff-load)
          (sql-mode . flymake-mode)))
 
+;; luacheck (lua) + yamllint (docker-compose) via flymake-collection.
+(use-package flymake-collection
+  :ensure t
+  :defer t)
+
+(defun /flymake-collection-enable (backend)
+  "Load BACKEND (a flymake-collection checker) and turn on flymake here."
+  (require backend nil t)
+  (add-hook 'flymake-diagnostic-functions backend nil t)
+  (flymake-mode 1))
+
+(add-hook 'lua-mode-hook
+          (lambda () (/flymake-collection-enable 'flymake-collection-luacheck)))
+(add-hook 'docker-compose-mode-hook
+          (lambda () (/flymake-collection-enable 'flymake-collection-yamllint)))
+
 ;; added these for lsp. do these also apply to eglot?
 (setq gc-cons-threshold 100000000)
 (setq read-process-output-max (* 10 1024 1024)) ;; 10mb
@@ -84,6 +100,7 @@ version); else run via bun; else a global typescript-language-server."
 					 svelte-mode
 					 typescript-ts-mode
 					 tsx-ts-mode
+					 nix-mode
            yaml-mode) . eglot-ensure))
 	:bind (:map eglot-mode-map
 							("C-c c d" . xref-find-definitions)
@@ -101,6 +118,8 @@ version); else run via bun; else a global typescript-language-server."
 							 '(svelte-mode . ("bun" "x" "svelteserver" "--stdio")))
   (add-to-list 'eglot-server-programs
 							 '(yaml-mode . ("harper-ls" "--stdio")))
+	(add-to-list 'eglot-server-programs
+							 '(nix-mode . ("nixd")))
 	(add-to-list 'eglot-server-programs
 							 '((typescript-ts-mode tsx-ts-mode typescript-mode) . /eglot-ts-ls))
 	(add-to-list 'eglot-server-programs
