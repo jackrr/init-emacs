@@ -5,7 +5,7 @@
 ;;; Commentary:
 
 ;;; Code:
-(add-to-list 'load-path "~/.config/emacs/custom/")
+(add-to-list 'load-path (expand-file-name "custom/" user-emacs-directory))
 
 (require 'straight-bootstrap)
 
@@ -25,7 +25,13 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(custom-safe-themes
-	 '("8b148cf8154d34917dfc794b5d0fe65f21e9155977a36a5985f89c09a9669aa0"
+	 '("9b9d7a851a8e26f294e778e02c8df25c8a3b15170e6f9fd6965ac5f2544ef2a9"
+		 "83550d0386203f010fa42ad1af064a766cfec06fc2f42eb4f2d89ab646f3ac01"
+		 "7de64ff2bb2f94d7679a7e9019e23c3bf1a6a04ba54341c36e7cf2d2e56e2bcc"
+		 "720838034f1dd3b3da66f6bd4d053ee67c93a747b219d1c546c41c4e425daf93"
+		 "e1df746a4fa8ab920aafb96c39cd0ab0f1bac558eff34532f453bd32c687b9d6"
+		 "87fa3605a6501f9b90d337ed4d832213155e3a2e36a512984f83e847102a42f4"
+		 "8b148cf8154d34917dfc794b5d0fe65f21e9155977a36a5985f89c09a9669aa0"
 		 "e14884c30d875c64f6a9cdd68fe87ef94385550cab4890182197b95d53a7cf40"
 		 "9e36779f5244f7d715d206158a3dade839d4ccb17f6a2f0108bf8d476160a221"
 		 "7c28419e963b04bf7ad14f3d8f6655c078de75e4944843ef9522dbecfcd8717d"

@@ -40,6 +40,7 @@
 	:hook (((elisp-mode
 					 json-mode
 					 markdown-mode
+					 python-mode
 					 python-ts-mode
 					 rust-ts-mode
 					 typst-ts-mode
@@ -59,16 +60,16 @@
 	;; multiple lsp for a buffer
   (add-to-list 'eglot-server-programs
 							 '(markdown-mode . ("harper-ls" "--stdio")))
-  (add-to-list 'eglot-server-programs
-							 '(svelte-mode . ("bun" "x" "svelteserver" "--stdio")))
+  ;; (add-to-list 'eglot-server-programs
+	;; 						 '(svelte-mode . ("bun" "x" "svelteserver" "--stdio")))
   (add-to-list 'eglot-server-programs
 							 '(yaml-mode . ("harper-ls" "--stdio")))
-  (add-to-list 'eglot-server-programs
-							 '(tsx-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
-  (add-to-list 'eglot-server-programs
-							 '(typescript-mode . ("bun" "x" "typescript-language-server" "--stdio")))
-	(add-to-list 'eglot-server-programs
-							 '(typescript-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
+	;; (add-to-list 'eglot-server-programs
+	;; 						 '(tsx-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
+  ;; (add-to-list 'eglot-server-programs
+	;; 						 '(typescript-mode . ("bun" "x" "typescript-language-server" "--stdio")))
+	;; (add-to-list 'eglot-server-programs
+	;; 						 '(typescript-ts-mode . ("bun" "x" "typescript-language-server" "--stdio")))
 	(add-to-list 'eglot-server-programs
 							 '(typst-ts-mode . ("lspx" "--lsp" "tinymist" "--lsp" "harper-ls --stdio"))))
 
@@ -93,9 +94,12 @@
 ;; 			 '(("\\.tsx\\'" . tsx-ts-mode))
 ;; 			 auto-mode-alist))
 
+(use-package poetry
+	:straight t)
+
 (use-package pyvenv
 	:ensure t
-	:hook (python-ts-mode . pyvenv-activate-projectile))
+	:hook ((python-ts-mode python-mode) . pyvenv-activate-nearest-venv))
 
 ;; Haskell / tidal / supercollider
 ;; (use-package sclang
@@ -152,10 +156,16 @@
   (message "Evaluated buffer")
   (eval-buffer))
 
-(defun pyvenv-activate-projectile ()
-	"Activates virtualenv via pyvenv at projectile project root for buffer."
+(defun pyvenv-activate-nearest-venv ()
+	"Activate the nearest .venv found by walking up from the current buffer.
+In a monorepo this picks e.g. backend/.venv for files under backend/,
+falling back to the repo-root .venv."
 	(interactive)
-	(pyvenv-activate (concat (projectile-project-root) ".venv")))
+	(let* ((start (or (and buffer-file-name (file-name-directory buffer-file-name))
+										default-directory))
+				 (dir (and start (locate-dominating-file start ".venv"))))
+		(when dir
+			(pyvenv-activate (expand-file-name ".venv" dir)))))
 
 (define-key emacs-lisp-mode-map (kbd "C-c C-c") #'mp-elisp-mode-eval-buffer)
 (define-key lisp-interaction-mode-map (kbd "C-c C-c") #'mp-elisp-mode-eval-buffer)
