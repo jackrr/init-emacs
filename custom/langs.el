@@ -198,6 +198,9 @@ version); else run via bun; else a global typescript-language-server."
 (use-package mermaid-mode
 	:ensure t)
 
+(autoload 'x12-mode "x12-mode" "" t)
+(add-to-list 'auto-mode-alist '("\\.era\\'" . x12-mode))
+
 ; From https://www.masteringemacs.org/article/evaluating-elisp-emacs
 (defun mp-elisp-mode-eval-buffer ()
 	"Evaluate elisp buffer with feedback."

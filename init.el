@@ -6,6 +6,7 @@
 
 ;;; Code:
 (add-to-list 'load-path (expand-file-name "custom/" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "custom/modes/" user-emacs-directory))
 
 (require 'straight-bootstrap)
 
