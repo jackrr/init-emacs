@@ -35,6 +35,9 @@
 	:config
 	(ultra-scroll-mode 1))
 
+(use-package ghostel
+  :ensure t)
+
 (use-package ligature
 	:ensure t
   :config
