@@ -36,7 +36,9 @@
 	(ultra-scroll-mode 1))
 
 (use-package ghostel
-  :ensure t)
+  :ensure t
+	:bind (("C-c t" . ghostel-project)
+				 ("C-c C-t" . ghostel-project)))
 
 (use-package ligature
 	:ensure t
@@ -130,7 +132,8 @@
 
 (use-package neotree
 	:ensure t
-	:bind ("C-c t" . neotree-toggle)
+  :bind (("C-c C-d" . neotree-toggle)
+				 ("C-c d" . neotree-toggle))
 	:config
 	(setq
 	 neo-theme (if (display-graphic-p) 'nerd-icons 'arrow)
