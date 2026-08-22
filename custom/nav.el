@@ -174,6 +174,17 @@ The script is responsible for creating the worktree at the path
 E.g.: (add-to-list \\='projectile-worktree-script-overrides
                     \\='(\"~/dev/app/\" . \"~/dev/app/.claude/setup-worktree.sh\"))")
 
+(defun /project-root ()
+	"Resolve the current project root, erroring clearly if there is none.
+Retries once after `projectile-invalidate-cache' — a directory visited
+before it had a .git (e.g. a brand new project) leaves a stale nil
+cached for it, which would otherwise surface as a cryptic
+wrong-type-argument deeper in the worktree commands."
+	(or (projectile-project-root)
+			(progn (projectile-invalidate-cache nil)
+						 (projectile-project-root))
+			(user-error "Not inside a recognized projectile project")))
+
 (defun projectile-create-worktree ()
 	"Create a git worktree for the current project and open it.
 Creates a new branch and worktree named by prompt, under the directory
@@ -184,7 +195,7 @@ inside ROOT, also ensures worktrees/ is gitignored there. If
 script is run (with NAME as its only argument) instead of `git
 worktree add'. Lands on the new worktree via `open-project-sessions'."
 	(interactive)
-	(let* ((root (file-name-as-directory (projectile-project-root)))
+	(let* ((root (file-name-as-directory (/project-root)))
 				 (name (read-string "Worktree name: "))
 				 (worktrees-dir (expand-file-name (/project-worktree-dir root) root))
 				 (wt-path (expand-file-name name worktrees-dir))
@@ -221,7 +232,7 @@ Prompts among worktrees (excluding the main working tree), removes it
 via `git worktree remove', deletes its same-named branch if merged,
 and cleans up its perspective and known-projects entry."
 	(interactive)
-	(let* ((root (file-name-as-directory (projectile-project-root)))
+	(let* ((root (file-name-as-directory (/project-root)))
 				 (all (/project-worktree-list root))
 				 (main (file-name-as-directory (expand-file-name (car all))))
 				 (others (mapcar (lambda (p) (file-name-as-directory (expand-file-name p)))
