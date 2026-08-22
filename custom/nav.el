@@ -27,7 +27,10 @@
 	:bind (:map projectile-mode-map
 							("C-c p" . projectile-command-map))
 	;; https://github.com/joaotavora/eglot/discussions/1436
-	:hook (after-init . projectile-mode))
+	:hook (after-init . projectile-mode)
+	:config
+	(define-key projectile-command-map (kbd "w") #'projectile-create-worktree)
+	(define-key projectile-command-map (kbd "W") #'projectile-delete-worktree))
 
 (use-package magit
   :ensure t)
@@ -105,21 +108,140 @@
 
 (global-set-key (kbd "C-M-t") 'launch-tidal)
 
+(defun open-project-sessions (root)
+	"Land on project ROOT in a new perspective with ghostel + claude-code-ide.
+Opens a ghostel terminal in ROOT, and a claude-code-ide session
+alongside it (in its own side window per
+`claude-code-ide-window-side'). Also records ROOT as a known
+projectile project."
+	(setq root (file-name-as-directory (expand-file-name root)))
+	(projectile-add-known-project root)
+	(projectile-save-known-projects)
+	(let ((default-directory root))
+		(persp-switch (projectile-project-name root))
+		(delete-other-windows)
+		(ghostel-project)
+		(claude-code-ide)))
+
 (defun open-project (&optional project-path)
-	"Projectile switch project, but opens in new perspective.
-If PROJECT-PATH is non-nil, switch directly to that project root."
+	"Switch to a project in a new perspective with ghostel + claude-code-ide.
+If PROJECT-PATH is non-nil, switch directly to that project root;
+otherwise prompt among known projectile projects."
 	(interactive)
-	(if project-path
-			(let ((projectile-switch-project-action #'projectile-find-file))
-				(projectile-switch-project-by-name project-path))
-		(projectile-switch-project))
-	(let ((proj (projectile-project-name))
-				(proj-buffer (buffer-name)))
-		(persp-switch proj)
-		(persp-set-buffer proj-buffer)
-		(switch-to-buffer proj-buffer)
-		;; (neotree-toggle)
-		(switch-to-buffer proj-buffer)))
+	(open-project-sessions
+	 (or project-path
+			 (completing-read "Switch to project: " projectile-known-projects nil t))))
+
+(defvar projectile-worktree-dir-overrides
+	'(("~/dev/app/" . "../"))
+	"Alist of (PROJECT-ROOT . RELATIVE-DIR) overriding where
+`projectile-create-worktree' puts new worktrees for PROJECT-ROOT.
+RELATIVE-DIR is resolved against PROJECT-ROOT, so \"../\" makes
+worktrees siblings of the project root instead of nesting them in
+\"worktrees/\" (the default when a project has no entry here).
+E.g.: (add-to-list \\='projectile-worktree-dir-overrides
+                    \\='(\"~/projects/foo/\" . \"../\"))")
+
+(defun /project-worktree-dir (root)
+	"Return the worktree parent directory (relative to ROOT) for ROOT."
+	(or (cdr (assoc root projectile-worktree-dir-overrides #'file-equal-p))
+			"worktrees/"))
+
+(defun /ensure-worktrees-gitignored (root)
+	"Add a worktrees/ line to ROOT's .gitignore if it isn't already there."
+	(let ((gitignore (expand-file-name ".gitignore" root)))
+		(unless (and (file-exists-p gitignore)
+								 (with-temp-buffer
+									 (insert-file-contents gitignore)
+									 (goto-char (point-min))
+									 (re-search-forward "^worktrees/?$" nil t)))
+			(with-temp-buffer
+				(when (file-exists-p gitignore)
+					(insert-file-contents gitignore))
+				(goto-char (point-max))
+				(unless (or (bobp) (bolp))
+					(insert "\n"))
+				(insert "worktrees/\n")
+				(write-region (point-min) (point-max) gitignore)))))
+
+(defvar projectile-worktree-script-overrides
+	'(("~/dev/app/" . "~/dev/app/.claude/setup-worktree.sh"))
+	"Alist of (PROJECT-ROOT . SCRIPT-PATH). When set for a project,
+`projectile-create-worktree' runs SCRIPT-PATH with the worktree name
+as its sole argument instead of running `git worktree add' directly.
+The script is responsible for creating the worktree at the path
+`/project-worktree-dir' would compute.
+E.g.: (add-to-list \\='projectile-worktree-script-overrides
+                    \\='(\"~/dev/app/\" . \"~/dev/app/.claude/setup-worktree.sh\"))")
+
+(defun projectile-create-worktree ()
+	"Create a git worktree for the current project and open it.
+Creates a new branch and worktree named by prompt, under the directory
+given by `/project-worktree-dir' (nested \"worktrees/\" by default, or
+a per-project override such as \"../\"). When the worktree lands
+inside ROOT, also ensures worktrees/ is gitignored there. If
+`projectile-worktree-script-overrides' has an entry for ROOT, that
+script is run (with NAME as its only argument) instead of `git
+worktree add'. Lands on the new worktree via `open-project-sessions'."
+	(interactive)
+	(let* ((root (file-name-as-directory (projectile-project-root)))
+				 (name (read-string "Worktree name: "))
+				 (worktrees-dir (expand-file-name (/project-worktree-dir root) root))
+				 (wt-path (expand-file-name name worktrees-dir))
+				 (script (cdr (assoc root projectile-worktree-script-overrides #'file-equal-p))))
+		(when (string-prefix-p (expand-file-name root) (expand-file-name wt-path))
+			(/ensure-worktrees-gitignored root))
+		(when (and script (not (file-executable-p script)))
+			(user-error "Worktree script %s is not executable" script))
+		(let ((default-directory root))
+			(with-temp-buffer
+				(let ((status (if script
+													 (call-process script nil t nil name)
+												 (call-process "git" nil t nil
+																			 "worktree" "add" wt-path "-b" name))))
+					(unless (zerop status)
+						(user-error "%s failed: %s"
+												(if script script "git worktree add")
+												(buffer-string))))))
+		(open-project-sessions wt-path)))
+
+(defun /project-worktree-list (root)
+	"Return git worktree paths for the repo at ROOT, main tree first."
+	(let (paths (default-directory root))
+		(with-temp-buffer
+			(call-process "git" nil t nil "worktree" "list" "--porcelain")
+			(goto-char (point-min))
+			(while (re-search-forward "^worktree \\(.+\\)$" nil t)
+				(push (match-string 1) paths)))
+		(nreverse paths)))
+
+(defun projectile-delete-worktree ()
+	"Remove one of the current project's git worktrees.
+Prompts among worktrees (excluding the main working tree), removes it
+via `git worktree remove', deletes its same-named branch if merged,
+and cleans up its perspective and known-projects entry."
+	(interactive)
+	(let* ((root (file-name-as-directory (projectile-project-root)))
+				 (all (/project-worktree-list root))
+				 (main (file-name-as-directory (expand-file-name (car all))))
+				 (others (mapcar (lambda (p) (file-name-as-directory (expand-file-name p)))
+												 (cdr all))))
+		(unless others
+			(user-error "No worktrees to delete for %s" main))
+		(let* ((wt-path (completing-read "Delete worktree: " others nil t))
+					 (wt-name (file-name-nondirectory (directory-file-name wt-path))))
+			(when (yes-or-no-p (format "Delete worktree %s? " wt-path))
+				(let ((default-directory main))
+					(with-temp-buffer
+						(let ((status (call-process "git" nil t nil "worktree" "remove" wt-path)))
+							(unless (zerop status)
+								(user-error "git worktree remove failed: %s" (buffer-string)))))
+					(call-process "git" nil nil nil "branch" "-d" wt-name))
+				(projectile-remove-known-project (file-name-as-directory (abbreviate-file-name wt-path)))
+				(projectile-save-known-projects)
+				(when (member wt-name (persp-names))
+					(persp-kill wt-name))
+				(message "Deleted worktree %s" wt-path)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Recent-projects startup buffer
