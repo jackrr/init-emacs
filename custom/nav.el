@@ -113,12 +113,19 @@
 Opens a ghostel terminal in ROOT, and a claude-code-ide session
 alongside it (in its own side window per
 `claude-code-ide-window-side'). Also records ROOT as a known
-projectile project."
+projectile project. If the current perspective is still the initial
+\"main\" one (i.e. this is the first project launched), renames it
+to the project name instead of switching to a new perspective, so
+launching from the startup projects list doesn't leave an empty
+\"main\" perspective cluttering the list."
 	(setq root (file-name-as-directory (expand-file-name root)))
 	(projectile-add-known-project root)
 	(projectile-save-known-projects)
-	(let ((default-directory root))
-		(persp-switch (projectile-project-name root))
+	(let ((default-directory root)
+				(name (projectile-project-name root)))
+		(if (equal (persp-current-name) persp-initial-frame-name)
+				(persp-rename name)
+			(persp-switch name))
 		(delete-other-windows)
 		(ghostel-project)
 		(claude-code-ide)))
