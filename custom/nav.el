@@ -287,6 +287,8 @@ and cleans up its perspective and known-projects entry."
 	;; `initial-buffer-choice', so make sure the list is populated.
 	(when (fboundp 'projectile-load-known-projects)
 		(projectile-load-known-projects))
+	(when (fboundp 'projectile-cleanup-known-projects)
+		(projectile-cleanup-known-projects))
 	(let ((buf (get-buffer-create recent-projects-buffer-name)))
 		(with-current-buffer buf
 			(let ((inhibit-read-only t))
