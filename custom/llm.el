@@ -190,5 +190,38 @@ Called via emacsclient from bin/claude-idle-notify (a Claude Code
 
 (global-set-key (kbd "C-c n") #'claude-idle-notifications-list)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Launching Claude with an AWS_PROFILE override, for MCP servers that need
+;; AWS credentials resolved via a specific profile.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun claude-code-ide--read-aws-profile ()
+  "Prompt for an AWS profile, completing over ~/.aws/config profiles."
+  (let (profiles)
+    (when (file-exists-p "~/.aws/config")
+      (with-temp-buffer
+        (insert-file-contents (expand-file-name "~/.aws/config"))
+        (goto-char (point-min))
+        (while (re-search-forward "^\\[profile \\(.+\\)\\]" nil t)
+          (push (match-string 1) profiles))))
+    (completing-read "AWS profile: " (nreverse profiles) nil nil (getenv "AWS_PROFILE"))))
+
+(defun claude-code-ide-aws-profile (profile &optional relaunch)
+  "Start Claude Code for the current project with AWS_PROFILE set to PROFILE.
+With a prefix argument (RELAUNCH), stop the existing session for this
+directory first and resume its most recent conversation under the new
+profile instead of starting a fresh session."
+  (interactive (list (claude-code-ide--read-aws-profile) current-prefix-arg))
+  (when relaunch
+    (claude-code-ide-stop))
+  (let ((process-environment (cons (format "AWS_PROFILE=%s" profile) process-environment)))
+    (if relaunch
+        (claude-code-ide-resume)
+      (claude-code-ide))))
+
+(with-eval-after-load 'claude-code-ide-transient
+	(transient-append-suffix 'claude-code-ide-menu "r"
+		'("a" "Start with AWS profile (C-u: relaunch)" claude-code-ide-aws-profile)))
+
 (provide 'llm)
 ;;; llm.el ends here
