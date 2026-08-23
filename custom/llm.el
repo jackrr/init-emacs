@@ -16,6 +16,30 @@
 ;; tracking renames the buffer shortly after spawn (e.g. "*emacs-ghostel*"
 ;; -> "*ghostel: user@host:path*"), so a name captured at spawn time would
 ;; no longer resolve by the time a notification fires.
+;;
+;; Setup: register bin/claude-idle-notify as a Claude Code `Notification'
+;; hook in ~/.claude/settings.json (adjust the path if this repo lives
+;; elsewhere), and ensure it's executable (chmod +x):
+;;
+;;   {
+;;     "hooks": {
+;;       "Notification": [
+;;         {
+;;           "hooks": [
+;;             {
+;;               "type": "command",
+;;               "command": "/home/jack/.config/emacs/bin/claude-idle-notify"
+;;             }
+;;           ]
+;;         }
+;;       ]
+;;     }
+;;   }
+;;
+;; Also requires `emacsclient' to reach a running Emacs server -- this repo
+;; doesn't call `server-start' itself, so start one (M-x server-start, or
+;; run Emacs as `emacs --daemon') -- and `jq' on PATH for the hook script
+;; to parse its JSON payload.
 
 ;;; Code:
 
