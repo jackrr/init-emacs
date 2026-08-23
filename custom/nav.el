@@ -322,6 +322,7 @@ and cleans up its perspective and known-projects entry."
   (interactive) (revert-buffer t t))
 
 (global-set-key (kbd "C-M-o") 'open-project)
+(global-set-key (kbd "C-c P") 'recent-projects-show)
 
 (global-set-key (kbd "M-t") 'eshell)
 
