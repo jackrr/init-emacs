@@ -63,6 +63,9 @@
 
 (setq-default tab-width 2)
 
+;; Wrap width used by M-q (fill-paragraph) and friends; the default is 70
+(setq-default fill-column 100)
+
 (defun comment-or-uncomment-region-or-line ()
   "Comments or uncomments the region or the current line if there's no active region."
   (interactive)
