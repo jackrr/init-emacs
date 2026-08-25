@@ -7,5 +7,7 @@
 !init.el
 !custom/
 !custom/**
+!bin/
+!bin/**
 
 worktrees/

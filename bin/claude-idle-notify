@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Claude Code `Notification` hook: forwards the idle/notification event to
+# Emacs. EMACS_PERSP_NAME / EMACS_BUFFER_ID are set on the terminal
+# process by `ghostel-pre-spawn-hook' (see custom/notify.el), so they are
+# inherited here whether the `claude' CLI is running under claude-code-ide
+# or a plain ghostel terminal. EMACS_BUFFER_ID is a stable per-buffer tag,
+# not the buffer's live name -- ghostel's title tracking renames the
+# buffer shortly after spawn, so the name itself can't be used as a
+# lookup key.
+set -euo pipefail
+
+payload="$(cat)"
+message="$(printf '%s' "$payload" | jq -r '.message // "Claude is idle"')"
+
+persp="${EMACS_PERSP_NAME:-}"
+buffer_id="${EMACS_BUFFER_ID:-}"
+
+emacsclient --eval "(claude-idle-notify $(printf '%s' "$persp" | jq -Rs .) $(printf '%s' "$buffer_id" | jq -Rs .) $(printf '%s' "$message" | jq -Rs .))" >/dev/null 2>&1 || true
