@@ -108,6 +108,23 @@
 
 (global-set-key (kbd "C-M-t") 'launch-tidal)
 
+(defun /delete-window (&optional window)
+	"Like `delete-window', but also allow deleting a frame's main window
+when only side windows (e.g. claude-code-ide's terminal pane) would
+remain. Normally Emacs refuses to delete the main window in that case
+since side windows require one, so this clears the `window-side'
+parameter of any side windows first when WINDOW is the main window."
+	(interactive)
+	(let ((window (or window (selected-window))))
+		(when (eq window (window-main-window))
+			(dolist (w (window-list nil 'no-minibuf))
+				(when (window-parameter w 'window-side)
+					(set-window-parameter w 'window-side nil)
+					(set-window-parameter w 'window-slot nil))))
+		(delete-window window)))
+
+(global-set-key (kbd "C-x 0") #'/delete-window)
+
 (defun open-project-sessions (root)
 	"Land on project ROOT in a new perspective with ghostel + claude-code-ide.
 Opens a ghostel terminal in ROOT, and a claude-code-ide session
@@ -136,6 +153,38 @@ If PROJECT-PATH is non-nil, switch directly to that project root;
 otherwise prompt among known projectile projects."
 	(interactive)
 	(open-project-sessions
+	 (or project-path
+			 (completing-read "Switch to project: " projectile-known-projects nil t))))
+
+(defun open-project-sessions-magit (root)
+	"Land on project ROOT in a new perspective with ghostel + magit.
+Opens a ghostel terminal in ROOT in one vertical pane, and `magit-status'
+for ROOT in another vertical pane. Also records ROOT as a known
+projectile project. If the current perspective is still the initial
+\"main\" one (i.e. this is the first project launched), renames it
+to the project name instead of switching to a new perspective, so
+launching from the startup projects list doesn't leave an empty
+\"main\" perspective cluttering the list."
+	(setq root (file-name-as-directory (expand-file-name root)))
+	(projectile-add-known-project root)
+	(projectile-save-known-projects)
+	(let ((default-directory root)
+				(name (projectile-project-name root)))
+		(if (equal (persp-current-name) persp-initial-frame-name)
+				(persp-rename name)
+			(persp-switch name))
+		(delete-other-windows)
+		(ghostel-project)
+		(split-window-right)
+		(other-window 1)
+		(magit-status root)))
+
+(defun open-project-magit (&optional project-path)
+	"Switch to a project in a new perspective with ghostel + magit panes.
+If PROJECT-PATH is non-nil, switch directly to that project root;
+otherwise prompt among known projectile projects."
+	(interactive)
+	(open-project-sessions-magit
 	 (or project-path
 			 (completing-read "Switch to project: " projectile-known-projects nil t))))
 
@@ -273,13 +322,21 @@ and cleans up its perspective and known-projects entry."
 							truncate-lines t))
 
 (defun recent-projects--open-at-point ()
-	"Open the project on the current line."
+	"Open the project on the current line with ghostel + magit panes."
+	(interactive)
+	(let ((path (get-text-property (line-beginning-position) 'project-path)))
+		(when path
+			(open-project-magit path))))
+
+(defun recent-projects--open-at-point-claude ()
+	"Open the project on the current line with ghostel + claude-code-ide."
 	(interactive)
 	(let ((path (get-text-property (line-beginning-position) 'project-path)))
 		(when path
 			(open-project path))))
 
 (define-key recent-projects-mode-map (kbd "RET") #'recent-projects--open-at-point)
+(define-key recent-projects-mode-map (kbd "c")   #'recent-projects--open-at-point-claude)
 (define-key recent-projects-mode-map (kbd "n")   #'next-line)
 (define-key recent-projects-mode-map (kbd "p")   #'previous-line)
 (define-key recent-projects-mode-map (kbd "g")   #'recent-projects-show)
@@ -302,7 +359,7 @@ and cleans up its perspective and known-projects entry."
 				(erase-buffer)
 				(insert (propertize "Recent projects\n\n"
 														 'face '(:height 1.4 :weight bold)))
-				(insert (propertize "  RET open  ·  n/p move  ·  g refresh  ·  q quit\n\n"
+				(insert (propertize "  RET open (ghostel+magit)  ·  c open (ghostel+claude)  ·  n/p move  ·  g refresh  ·  q quit\n\n"
 														 'face 'shadow))
 				(let ((projects (and (boundp 'projectile-known-projects)
 														 projectile-known-projects)))
