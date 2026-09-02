@@ -47,13 +47,17 @@
   :commands format-all-mode
   :hook (prog-mode . format-all-mode)
 	:config
+	;; Keys must be `language-id' names, not major modes: .js/.mjs -> "JavaScript",
+	;; .jsx -> "JSX", .ts/.mts/.cts -> "TypeScript", .tsx -> "TSX".
 	(setq-default format-all-formatters
 								'(("Rust" (rustfmt "--edition" "2024"))
 									("Python" (ruff))
-									("Javascript" prettier)
+									("JavaScript" prettier)
+									("JSX" prettier)
                   ("TypeScript" prettier)
-									("TSX" prettier)
-									("Typescript" prettier))))
+									("TSX" prettier)))
+	;; prettier is the formatter for all four, so make sure it is on PATH.
+	(/ensure-npm-global "prettier" "prettier"))
 
 ;; Make typing/yanking replace instead of prepend to region
 (delete-selection-mode 1)

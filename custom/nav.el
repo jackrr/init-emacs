@@ -230,6 +230,13 @@ The script is responsible for creating the worktree at the path
 E.g.: (add-to-list \\='projectile-worktree-script-overrides
                     \\='(\"~/dev/app/\" . \"~/dev/app/.claude/setup-worktree.sh\"))")
 
+(defun /project-worktree-script (root)
+	"Return the absolute setup script for ROOT, or nil if it has none.
+Expands \"~\" because `make-process' runs the command directly, with no
+shell. An unexpanded tilde reaches the program as a literal directory."
+	(let ((script (cdr (assoc root projectile-worktree-script-overrides #'file-equal-p))))
+		(and script (expand-file-name script))))
+
 (defun /project-root ()
 	"Resolve the current project root, erroring clearly if there is none.
 Retries once after `projectile-invalidate-cache' — a directory visited
@@ -241,6 +248,15 @@ wrong-type-argument deeper in the worktree commands."
 						 (projectile-project-root))
 			(user-error "Not inside a recognized projectile project")))
 
+(defvar /worktree-setup-buffer-name "*worktree-setup*"
+	"Buffer that collects output of the asynchronous worktree setup.")
+
+(defvar /worktree-setup-nice-prefix '("nice" "-n" "10")
+	"Command prefix that lowers the priority of the worktree setup.
+Set to nil to run the setup at normal priority. Setup jobs such as
+`uv sync' or `npm ci' saturate CPU and disk, which makes the whole
+machine feel slow; running them niced keeps the machine usable.")
+
 (defun projectile-create-worktree ()
 	"Create a git worktree for the current project and open it.
 Creates a new branch and worktree named by prompt, under the directory
@@ -249,28 +265,54 @@ a per-project override such as \"../\"). When the worktree lands
 inside ROOT, also ensures worktrees/ is gitignored there. If
 `projectile-worktree-script-overrides' has an entry for ROOT, that
 script is run (with NAME as its only argument) instead of `git
-worktree add'. Lands on the new worktree via `open-project-sessions'."
+worktree add'.
+
+The setup runs asynchronously, so Emacs stays usable while it works.
+Output goes to `/worktree-setup-buffer-name'. On success the new
+worktree is opened via `open-project-sessions'; on failure that buffer
+is shown."
 	(interactive)
 	(let* ((root (file-name-as-directory (/project-root)))
 				 (name (read-string "Worktree name: "))
 				 (worktrees-dir (expand-file-name (/project-worktree-dir root) root))
 				 (wt-path (expand-file-name name worktrees-dir))
-				 (script (cdr (assoc root projectile-worktree-script-overrides #'file-equal-p))))
+				 (script (/project-worktree-script root))
+				 (buffer (get-buffer-create /worktree-setup-buffer-name)))
 		(when (string-prefix-p (expand-file-name root) (expand-file-name wt-path))
 			(/ensure-worktrees-gitignored root))
 		(when (and script (not (file-executable-p script)))
 			(user-error "Worktree script %s is not executable" script))
-		(let ((default-directory root))
-			(with-temp-buffer
-				(let ((status (if script
-													 (call-process script nil t nil name)
-												 (call-process "git" nil t nil
-																			 "worktree" "add" wt-path "-b" name))))
-					(unless (zerop status)
-						(user-error "%s failed: %s"
-												(if script script "git worktree add")
-												(buffer-string))))))
-		(open-project-sessions wt-path)))
+		(when (process-live-p (get-buffer-process buffer))
+			(user-error "A worktree setup is already running; see %s"
+									/worktree-setup-buffer-name))
+		(let* ((label (if script script "git worktree add"))
+					 (command (append /worktree-setup-nice-prefix
+														(if script
+																(list script name)
+															(list "git" "worktree" "add" wt-path "-b" name)))))
+			(with-current-buffer buffer
+				(let ((inhibit-read-only t))
+					(erase-buffer))
+				(setq default-directory root)
+				(insert (format "$ %s\n" (mapconcat #'shell-quote-argument command " "))))
+			(make-process
+			 :name "worktree-setup"
+			 :buffer buffer
+			 :command command
+			 :noquery t
+			 :connection-type 'pipe
+			 :sentinel
+			 (lambda (proc _event)
+				 (unless (process-live-p proc)
+					 (if (and (eq (process-status proc) 'exit)
+										(zerop (process-exit-status proc)))
+							 (progn
+								 (message "Worktree %s ready" name)
+								 (open-project-sessions wt-path))
+						 (message "%s failed (see %s)" label /worktree-setup-buffer-name)
+						 (pop-to-buffer (process-buffer proc))))))
+			(message "Creating worktree %s in the background (output in %s)..."
+							 name /worktree-setup-buffer-name))))
 
 (defun /project-worktree-list (root)
 	"Return git worktree paths for the repo at ROOT, main tree first."

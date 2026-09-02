@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Build "~/Applications/Claude (Emacs).app": a copy of terminal-notifier.app
+# renamed so macOS shows idle notifications as coming from "Claude (Emacs)"
+# instead of a terminal.
+#
+# macOS reads the name and icon of a notification from the bundle that sent
+# it, and terminal-notifier has no flag for either (-appIcon is ignored on
+# modern macOS, and -sender hijacks the click, which would break the
+# jump-to-buffer action). Cloning the bundle is the way to control both.
+#
+# Usage: make-claude-notifier-app [path/to/icon.icns]
+#
+# Run once. custom/llm.el picks the clone up automatically (see
+# `claude-idle-notify-app'); until then it falls back to plain
+# terminal-notifier. The first notification asks for permission -- allow it,
+# otherwise nothing appears.
+set -euo pipefail
+
+APP="$HOME/Applications/Claude (Emacs).app"
+BUNDLE_NAME="Claude (Emacs)"
+BUNDLE_ID="org.gnu.emacs.claude-notifier"
+
+src="$(brew --prefix terminal-notifier 2>/dev/null || true)/terminal-notifier.app"
+if [ ! -d "$src" ]; then
+  echo "terminal-notifier.app not found -- install it with: brew install terminal-notifier" >&2
+  exit 1
+fi
+
+icon="${1:-}"
+if [ -z "$icon" ]; then
+  # No icon given: borrow the icon of whichever Emacs.app is installed.
+  for candidate in \
+    /Applications/Emacs.app \
+    "$HOME/Applications/Emacs.app" \
+    /opt/homebrew/opt/emacs-plus*/Emacs.app \
+    /opt/homebrew/opt/emacs*/Emacs.app; do
+    [ -d "$candidate" ] || continue
+    # Use the bundle's declared app icon, not the first .icns lying around
+    # (Emacs.app also ships document.icns and friends).
+    name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' \
+              "$candidate/Contents/Info.plist" 2>/dev/null || true)"
+    [ -n "$name" ] || continue
+    found="$candidate/Contents/Resources/${name%.icns}.icns"
+    if [ -f "$found" ]; then icon="$found"; break; fi
+  done
+fi
+
+mkdir -p "$HOME/Applications"
+rm -rf "$APP"
+cp -R "$src" "$APP"
+
+plist="$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName $BUNDLE_NAME" "$plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string $BUNDLE_NAME" "$plist" 2>/dev/null \
+  || /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $BUNDLE_NAME" "$plist"
+
+if [ -n "$icon" ] && [ -f "$icon" ]; then
+  cp "$icon" "$APP/Contents/Resources/ClaudeEmacs.icns"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile ClaudeEmacs" "$plist"
+  echo "icon: $icon"
+else
+  echo "icon: keeping terminal-notifier's default (pass an .icns path to change it)"
+fi
+
+# Editing Info.plist invalidates Homebrew's signature, so sign again ad-hoc.
+codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
+
+# Register with LaunchServices. macOS must be able to relaunch the bundle to
+# deliver a notification click, so an unregistered clone swallows clicks.
+# `open -g' registers as a side effect and works where lsregister is blocked.
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+  -f "$APP" || true
+open -g "$APP" 2>/dev/null || true
+
+echo "built: $APP"
+echo "test:  '$APP/Contents/MacOS/terminal-notifier' -title 'persp (emacs): claude idle' -message hello"

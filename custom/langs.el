@@ -5,16 +5,37 @@
 
 ;;; Code:
 
-(use-package treesit-auto
-  :ensure t
-  :config
-  (setq treesit-auto-install 'always)
-  (global-treesit-auto-mode))
+;; Tree-sitter is built in on Emacs 31, so treesit-auto is no longer used.
+;; Emacs 31 already maps e.g. "foo.tsx" to `tsx-ts-mode-maybe' in
+;; `auto-mode-alist'.  That "-maybe" mode only turns on the tree-sitter mode
+;; when BOTH of these are true:
+;;   1. the mode is listed in `treesit-enabled-modes', and
+;;   2. the grammar is installed (or can be installed).
+;; Without them a .ts/.tsx file falls back to a plain mode, so it gets no
+;; font-lock and no eglot hook.
+(require 'treesit)
 
-;; Note: treesit-auto handles grammar installation automatically.
-;; treesit-auto-install-grammar and treesit-enabled-modes were EMACS-31 preview features
-;; that were merged upstream into Emacs 30+ and are no longer needed as standalone functions.
-;; Let's just use (use-package treesit-auto ...) config above to handle it.
+;; Install a missing grammar without asking.
+(setq treesit-auto-install-grammar 'always)
+
+;; Modes to prefer over their non-tree-sitter equivalents.
+(setq treesit-enabled-modes
+      '(bash-ts-mode
+        css-ts-mode
+        dockerfile-ts-mode
+        go-ts-mode
+        html-ts-mode
+        js-ts-mode
+        json-ts-mode
+        python-ts-mode
+        rust-ts-mode
+        toml-ts-mode
+        tsx-ts-mode
+        typescript-ts-mode
+        yaml-ts-mode))
+;; No grammar recipes needed: each bundled *-ts-mode adds its own entry to
+;; `treesit-language-source-alist', pinned to a commit that matches the
+;; font-lock queries that ship with that mode.
 
 (defvar /langs-gc-threshold 100000000)
 
@@ -100,6 +121,7 @@ version); else run via bun; else a global typescript-language-server."
 					 svelte-mode
 					 typescript-ts-mode
 					 tsx-ts-mode
+					 js-ts-mode
 					 nix-mode
            yaml-mode) . eglot-ensure))
 	:bind (:map eglot-mode-map
@@ -120,8 +142,14 @@ version); else run via bun; else a global typescript-language-server."
 							 '(yaml-mode . ("harper-ls" "--stdio")))
 	(add-to-list 'eglot-server-programs
 							 '(nix-mode . ("nixd")))
+	;; .ts -> typescript-ts-mode, .tsx/.jsx -> tsx-ts-mode, .js -> js-ts-mode.
 	(add-to-list 'eglot-server-programs
-							 '((typescript-ts-mode tsx-ts-mode typescript-mode) . /eglot-ts-ls))
+							 '((typescript-ts-mode tsx-ts-mode typescript-mode js-ts-mode)
+								 . /eglot-ts-ls))
+	;; The last branch of `/eglot-ts-ls' needs a global server, so install one.
+	;; typescript-language-server drives tsserver, which ships with typescript.
+	(/ensure-npm-global "typescript-language-server" "typescript-language-server")
+	(/ensure-npm-global "tsc" "typescript")
 	(add-to-list 'eglot-server-programs
 							 '(typst-ts-mode . ("lspx" "--lsp" "tinymist" "--lsp" "harper-ls --stdio"))))
 
@@ -137,14 +165,11 @@ version); else run via bun; else a global typescript-language-server."
   (with-eval-after-load 'gnus
     (require 'svelte-mode)))
 
-;; Needed for svelte mode, no treesitter support for svelte (at this time)
-;; (use-package typescript-mode
-;; 	:ensure t)
-
-;; (setq auto-mode-alist
-;; 			(append
-;; 			 '(("\\.tsx\\'" . tsx-ts-mode))
-;; 			 auto-mode-alist))
+;; Emacs maps .jsx to js-jsx-mode, which has no tree-sitter mode of its own.
+;; The tsx grammar reads JSX, so use `tsx-ts-mode' there.
+(add-to-list 'auto-mode-alist '("\\.jsx\\'" . tsx-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.mts\\'" . typescript-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.cts\\'" . typescript-ts-mode))
 
 (use-package pyvenv
 	:ensure t

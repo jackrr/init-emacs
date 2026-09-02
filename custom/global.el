@@ -25,6 +25,32 @@
   (when (or (daemonp) (memq window-system '(mac ns x pgtk)))
     (exec-path-from-shell-initialize)))
 
+;; Install a missing global npm CLI once, in the background.  asdf keeps
+;; global node binaries behind a shim, so reshim or the new binary stays
+;; invisible until the next shell.
+(defun /ensure-npm-global (executable package)
+  "Install PACKAGE with `npm install --global' when EXECUTABLE is missing."
+  (let ((npm (executable-find "npm")))
+    (cond
+     ((executable-find executable) nil)
+     ((not npm)
+      (message "/ensure-npm-global: %s is missing and npm was not found"
+               executable))
+     (t
+      (message "/ensure-npm-global: installing %s ..." package)
+      (set-process-sentinel
+       (start-process (format "npm-install-%s" executable)
+                      (format "*npm-install-%s*" executable)
+                      npm "install" "--global" package)
+       (lambda (proc _event)
+         (when (eq (process-status proc) 'exit)
+           (if (/= 0 (process-exit-status proc))
+               (message "/ensure-npm-global: %s failed, see %s"
+                        package (buffer-name (process-buffer proc)))
+             (when (executable-find "asdf")
+               (call-process "asdf" nil nil nil "reshim" "nodejs"))
+             (message "/ensure-npm-global: installed %s" package)))))))))
+
 ;; Clear the path for aerospace on macos
 (global-unset-key (kbd "s-<left>"))
 (global-unset-key (kbd "s-<right>"))

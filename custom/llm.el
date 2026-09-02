@@ -36,6 +36,10 @@
 ;;     }
 ;;   }
 ;;
+;; On macOS, run bin/make-claude-notifier-app once so notifications are sent
+;; by a bundle named "Claude (Emacs)" with the Emacs icon; without it they
+;; are sent by terminal-notifier and look like they come from a terminal.
+;;
 ;; Also requires `emacsclient' to reach a running Emacs server -- this repo
 ;; doesn't call `server-start' itself, so start one (M-x server-start, or
 ;; run Emacs as `emacs --daemon') -- and `jq' on PATH for the hook script
@@ -53,6 +57,87 @@
   (claude-code-ide-emacs-tools-setup)
 	(setq claude-code-ide-terminal-backend 'ghostel)) ; Optionally enable Emacs MCP tools
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Editing a Claude prompt in Emacs instead of an external editor.
+;;
+;; C-g in the Claude Code CLI opens the pending prompt in $EDITOR. Inside a
+;; ghostel terminal that inherited an $EDITOR of `code' (or none, in which
+;; case the CLI picks whatever GUI editor it finds), that pops a separate
+;; app. Point $EDITOR at `emacsclient' so the prompt opens as an ordinary
+;; buffer in the current frame -- and so in the current perspective.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(require 'server)
+
+(defvar llm-emacsclient-program
+  (or (let ((sibling (expand-file-name "emacsclient" invocation-directory)))
+        (and (file-executable-p sibling) sibling))
+      (executable-find "emacsclient")
+      "emacsclient")
+  "The `emacsclient' to hand to child processes as $EDITOR.
+Prefers the one shipped next to the running Emacs, so the version
+always matches the server.")
+
+(defun llm--tag-spawn-editor ()
+  "Make child processes of a ghostel terminal edit inside this Emacs."
+  (setenv "EDITOR" llm-emacsclient-program)
+  (setenv "VISUAL" llm-emacsclient-program))
+
+(defvar claude-prompt-file-regexp "claude\\|prompt"
+  "Match server-visited file names that hold a pending Claude prompt.
+Buffers that match get `claude-prompt-mode', which adds the C-c C-c /
+C-c C-k keys. Everything else keeps plain `emacsclient' behaviour (C-x #
+to finish).")
+
+(defun claude-prompt-send ()
+  "Save the prompt and hand it back to the waiting Claude CLI."
+  (interactive)
+  (save-buffer)
+  (server-edit))
+
+(defun claude-prompt-cancel ()
+  "Send an empty prompt back to the waiting Claude CLI."
+  (interactive)
+  (erase-buffer)
+  (save-buffer)
+  (server-edit))
+
+(defvar claude-prompt-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c") #'claude-prompt-send)
+    (define-key map (kbd "C-c C-k") #'claude-prompt-cancel)
+    map)
+  "Keys for finishing a prompt handed over by the Claude CLI.")
+
+(define-minor-mode claude-prompt-mode
+  "Minor mode for a Claude prompt opened here through `emacsclient'."
+  :lighter " ClaudePrompt"
+  :keymap claude-prompt-mode-map
+  (when claude-prompt-mode
+    (setq-local header-line-format
+                (substitute-command-keys
+                 "Claude prompt: \\[claude-prompt-send] sends, \\[claude-prompt-cancel] cancels"))))
+
+(defun claude-prompt--maybe-enable ()
+  "Turn on `claude-prompt-mode' if this server buffer holds a Claude prompt."
+  (when (and buffer-file-name
+             (string-match-p claude-prompt-file-regexp
+                             (downcase (file-name-nondirectory buffer-file-name))))
+    (claude-prompt-mode 1)))
+
+(add-hook 'server-visit-hook #'claude-prompt--maybe-enable)
+
+;; Show handed-over files next to the terminal rather than on top of it.
+(setq server-window
+      (lambda (buffer)
+        (pop-to-buffer buffer '((display-buffer-reuse-window
+                                 display-buffer-below-selected)
+                                (window-height . 0.4)))))
+
+;; Both $EDITOR and the notification hook below need a live server.
+(unless (server-running-p)
+  (server-start))
+
 (defvar notify--buffer-id-counter 0)
 
 (defvar-local notify--buffer-id nil
@@ -68,7 +153,8 @@ Survives later buffer renames, unlike the buffer name itself.")
   (setenv "EMACS_BUFFER_ID" notify--buffer-id))
 
 (with-eval-after-load 'ghostel
-  (add-hook 'ghostel-pre-spawn-hook #'notify--tag-spawn-environment))
+  (add-hook 'ghostel-pre-spawn-hook #'notify--tag-spawn-environment)
+  (add-hook 'ghostel-pre-spawn-hook #'llm--tag-spawn-editor))
 
 (defun notify--find-buffer-by-id (id)
   "Return the live buffer tagged with ID via `notify--buffer-id', or nil."
@@ -121,12 +207,37 @@ longer exist."
         (persp-switch persp))
       (pop-to-buffer buffer)
       (raise-frame)
-      (select-frame-set-input-focus (selected-frame))))))
+      (select-frame-set-input-focus (selected-frame))
+      ;; `raise-frame' alone does not pull Emacs.app in front of the app that
+      ;; owns the notification, so ask the window server directly.
+      (when (eq system-type 'darwin)
+        (call-process "osascript" nil 0 nil
+                      "-e" "tell application id \"org.gnu.Emacs\" to activate"))))))
+
+(defun claude-idle-notify--title (persp buffer-name)
+  "Notification title for an agent in PERSP (or BUFFER-NAME if unnamed)."
+  (format "%s (emacs): claude idle"
+          (if (string-empty-p persp) buffer-name persp)))
+
+(defvar claude-idle-notify-app
+  (expand-file-name "~/Applications/Claude (Emacs).app")
+  "A terminal-notifier clone whose bundle name is shown on notifications.
+macOS takes the app name and icon from the sending bundle, so plain
+`terminal-notifier' notifications look like they come from a terminal.
+Create the clone with bin/make-claude-notifier-app; if it is missing,
+`claude-idle-notify--darwin' falls back to `terminal-notifier' on PATH.")
+
+(defun claude-idle-notify--notifier ()
+  "Path to the terminal-notifier binary to send with, or nil if none."
+  (let ((cloned (expand-file-name "Contents/MacOS/terminal-notifier"
+                                  claude-idle-notify-app)))
+    (or (and (file-executable-p cloned) cloned)
+        (executable-find "terminal-notifier"))))
 
 (defun claude-idle-notify--linux (persp buffer-id buffer-name message)
   "Show a D-Bus desktop notification with a jump action."
   (notifications-notify
-   :title (format "Claude idle — %s" (if (string-empty-p persp) buffer-name persp))
+   :title (claude-idle-notify--title persp buffer-name)
    :body message
    :actions '("jump" "Go to buffer")
    :on-action (lambda (_id _key) (claude-idle-jump persp buffer-id))))
@@ -134,17 +245,20 @@ longer exist."
 (defun claude-idle-notify--darwin (persp buffer-id buffer-name message)
   "Show a macOS notification, using terminal-notifier's -execute for the
 jump action when available, else a plain osascript notification."
-  (if (executable-find "terminal-notifier")
-      (call-process "terminal-notifier" nil 0 nil
-                    "-title" (format "Claude idle — %s" (if (string-empty-p persp) buffer-name persp))
-                    "-message" message
-                    "-execute" (format "emacsclient --eval %s"
-                                        (shell-quote-argument
-                                         (format "(claude-idle-jump %S %S)" persp buffer-id))))
-    (call-process "osascript" nil 0 nil "-e"
-                  (format "display notification %s with title %s"
-                          (prin1-to-string message)
-                          (prin1-to-string (format "Claude idle — %s" (if (string-empty-p persp) buffer-name persp)))))))
+  (let ((notifier (claude-idle-notify--notifier))
+        (title (claude-idle-notify--title persp buffer-name)))
+    (if notifier
+        (call-process notifier nil 0 nil
+                      "-title" title
+                      "-message" message
+                      "-execute" (format "%s --eval %s"
+                                         (shell-quote-argument llm-emacsclient-program)
+                                         (shell-quote-argument
+                                          (format "(claude-idle-jump %S %S)" persp buffer-id))))
+      (call-process "osascript" nil 0 nil "-e"
+                    (format "display notification %s with title %s"
+                            (prin1-to-string message)
+                            (prin1-to-string title))))))
 
 (defun claude-idle-notify (persp buffer-id message)
   "Record and surface an idle notification for PERSP/BUFFER-ID with MESSAGE.
@@ -167,8 +281,35 @@ Called via emacsclient from bin/claude-idle-notify (a Claude Code
                              (notify--find-buffer-by-id (plist-get entry :buffer-id)))
                            claude-idle-notifications)))
 
+(defun claude-idle-notifications-clear ()
+  "Drop every entry from `claude-idle-notifications'."
+  (interactive)
+  (let ((n (length claude-idle-notifications)))
+    (setq claude-idle-notifications nil)
+    (message "Cleared %d idle notification%s" n (if (= n 1) "" "s"))))
+
+(defun claude-idle-notifications-clear-and-exit ()
+  "Clear all idle notifications and quit the minibuffer."
+  (interactive)
+  (claude-idle-notifications-clear)
+  (abort-recursive-edit))
+
+(defvar claude-idle-notifications-minibuffer-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-k") #'claude-idle-notifications-clear-and-exit)
+    map)
+  "Extra keys active while picking an idle notification.")
+
+(defun claude-idle-notifications--setup-minibuffer ()
+  "Layer `claude-idle-notifications-minibuffer-map' over the minibuffer map."
+  (use-local-map (make-composed-keymap
+                  claude-idle-notifications-minibuffer-map
+                  (current-local-map))))
+
 (defun claude-idle-notifications-list ()
-  "Pick a recent idle notification and jump to its perspective/buffer."
+  "Pick a recent idle notification and jump to its perspective/buffer.
+Press \\<claude-idle-notifications-minibuffer-map>\\[claude-idle-notifications-clear-and-exit] \
+in the minibuffer to drop all pending notifications."
   (interactive)
   (claude-idle-notifications-prune)
   (if (null claude-idle-notifications)
@@ -182,13 +323,17 @@ Called via emacsclient from bin/claude-idle-notify (a Claude Code
                                     (plist-get entry :message))
                             entry))
                     claude-idle-notifications))
-           (pick (completing-read "Jump to idle agent: " choices nil t))
+           (pick (minibuffer-with-setup-hook
+                     #'claude-idle-notifications--setup-minibuffer
+                   (completing-read "Jump to idle agent (C-c C-k clears all): "
+                                    choices nil t)))
            (entry (cdr (assoc pick choices))))
       (when entry
         (setq claude-idle-notifications (delq entry claude-idle-notifications))
         (claude-idle-jump (plist-get entry :persp) (plist-get entry :buffer-id))))))
 
 (global-set-key (kbd "C-c n") #'claude-idle-notifications-list)
+(global-set-key (kbd "C-c N") #'claude-idle-notifications-clear)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Launching Claude with an AWS_PROFILE override, for MCP servers that need
