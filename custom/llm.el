@@ -138,6 +138,22 @@ to finish).")
 (unless (server-running-p)
   (server-start))
 
+(defun my/agent-shell-opencode-new-shell ()
+  "Start a new OpenCode agent shell, skipping the session-strategy prompt."
+  (interactive)
+  (agent-shell--start :config (agent-shell-opencode-make-agent-config)
+                       :new-session t
+                       :session-strategy 'new))
+
+(use-package agent-shell
+  :ensure t
+	:bind (("C-c C-o n" . my/agent-shell-opencode-new-shell)
+         ("C-c C-o r" . agent-shell-opencode-start-agent))
+  :config
+  (setq agent-shell-anthropic-authentication
+        (agent-shell-anthropic-make-authentication :login t))
+  (setq agent-shell-opencode-default-model-id "ollama/qwen3.8:27b"))
+
 (defvar notify--buffer-id-counter 0)
 
 (defvar-local notify--buffer-id nil
