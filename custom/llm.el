@@ -4,13 +4,11 @@
 
 ;;; Commentary:
 
-;; Idle notifications: tags every ghostel-spawned terminal (which includes
-;; claude-code-ide sessions, since `claude-code-ide-terminal-backend' is
-;; `ghostel') with its perspective and a stable per-buffer id via
-;; `ghostel-pre-spawn-hook'. The `claude' CLI child process inherits these,
-;; and bin/claude-idle-notify (registered as a Claude Code `Notification'
-;; hook) reads them back and calls `claude-idle-notify' via emacsclient when
-;; an agent goes idle.
+;; Idle notifications: tags every ghostel-spawned terminal with its
+;; perspective and a stable per-buffer id via `ghostel-pre-spawn-hook'. A
+;; CLI agent child process inherits these, and bin/claude-idle-notify
+;; (registered as a Claude Code `Notification' hook) reads them back and
+;; calls `claude-idle-notify' via emacsclient when an agent goes idle.
 ;;
 ;; The id (not the buffer name) is what's threaded through: ghostel's title
 ;; tracking renames the buffer shortly after spawn (e.g. "*emacs-ghostel*"
@@ -50,21 +48,14 @@
 (require 'notifications)
 (require 'cl-lib)
 
-(use-package claude-code-ide
-  :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
-  :bind ("C-c C-'" . claude-code-ide-menu) ; Set your favorite keybinding
-  :config
-  (claude-code-ide-emacs-tools-setup)
-	(setq claude-code-ide-terminal-backend 'ghostel)) ; Optionally enable Emacs MCP tools
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Editing a Claude prompt in Emacs instead of an external editor.
+;; Editing an agent prompt in Emacs instead of an external editor.
 ;;
-;; C-g in the Claude Code CLI opens the pending prompt in $EDITOR. Inside a
-;; ghostel terminal that inherited an $EDITOR of `code' (or none, in which
-;; case the CLI picks whatever GUI editor it finds), that pops a separate
-;; app. Point $EDITOR at `emacsclient' so the prompt opens as an ordinary
-;; buffer in the current frame -- and so in the current perspective.
+;; A CLI agent that opens its pending prompt in $EDITOR would, inside a
+;; ghostel terminal that inherited an $EDITOR of `code' (or none), pop a
+;; separate app. Point $EDITOR at `emacsclient' so the prompt opens as an
+;; ordinary buffer in the current frame -- and so in the current
+;; perspective.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (require 'server)
@@ -83,50 +74,6 @@ always matches the server.")
   (setenv "EDITOR" llm-emacsclient-program)
   (setenv "VISUAL" llm-emacsclient-program))
 
-(defvar claude-prompt-file-regexp "claude\\|prompt"
-  "Match server-visited file names that hold a pending Claude prompt.
-Buffers that match get `claude-prompt-mode', which adds the C-c C-c /
-C-c C-k keys. Everything else keeps plain `emacsclient' behaviour (C-x #
-to finish).")
-
-(defun claude-prompt-send ()
-  "Save the prompt and hand it back to the waiting Claude CLI."
-  (interactive)
-  (save-buffer)
-  (server-edit))
-
-(defun claude-prompt-cancel ()
-  "Send an empty prompt back to the waiting Claude CLI."
-  (interactive)
-  (erase-buffer)
-  (save-buffer)
-  (server-edit))
-
-(defvar claude-prompt-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-c") #'claude-prompt-send)
-    (define-key map (kbd "C-c C-k") #'claude-prompt-cancel)
-    map)
-  "Keys for finishing a prompt handed over by the Claude CLI.")
-
-(define-minor-mode claude-prompt-mode
-  "Minor mode for a Claude prompt opened here through `emacsclient'."
-  :lighter " ClaudePrompt"
-  :keymap claude-prompt-mode-map
-  (when claude-prompt-mode
-    (setq-local header-line-format
-                (substitute-command-keys
-                 "Claude prompt: \\[claude-prompt-send] sends, \\[claude-prompt-cancel] cancels"))))
-
-(defun claude-prompt--maybe-enable ()
-  "Turn on `claude-prompt-mode' if this server buffer holds a Claude prompt."
-  (when (and buffer-file-name
-             (string-match-p claude-prompt-file-regexp
-                             (downcase (file-name-nondirectory buffer-file-name))))
-    (claude-prompt-mode 1)))
-
-(add-hook 'server-visit-hook #'claude-prompt--maybe-enable)
-
 ;; Show handed-over files next to the terminal rather than on top of it.
 (setq server-window
       (lambda (buffer)
@@ -138,21 +85,29 @@ to finish).")
 (unless (server-running-p)
   (server-start))
 
-(defun my/agent-shell-opencode-new-shell ()
-  "Start a new OpenCode agent shell, skipping the session-strategy prompt."
+(defun my/ghostel-opencode ()
+  "Launch OpenCode in a ghostel terminal for the current project or directory.
+Re-uses an existing live OpenCode buffer for this project if one exists."
   (interactive)
-  (agent-shell--start :config (agent-shell-opencode-make-agent-config)
-                       :new-session t
-                       :session-strategy 'new))
+  (let* ((root (or (and (fboundp 'projectile-project-root)
+                        (projectile-project-root))
+                   default-directory))
+         (buf-name (format "*ghostel: opencode: %s*"
+                           (file-name-nondirectory (directory-file-name root))))
+         (existing (get-buffer buf-name)))
+    (if (and existing (buffer-live-p existing) (get-buffer-process existing))
+        (pop-to-buffer existing)
+      (let ((default-directory root)
+            (buf (get-buffer-create buf-name)))
+        (pop-to-buffer buf)
+        ;; Spawn through a login+interactive shell so it sources ~/.zshenv
+        ;; etc. `ghostel-exec' execs the program directly (no shell), so
+        ;; launching "opencode" straight would miss DATABRICKS_HOST /
+        ;; DATABRICKS_TOKEN / PRISMO_TOKEN and OpenCode could not reach its API.
+        (ghostel-exec buf (or (getenv "SHELL") "/bin/zsh")
+                      (list "-lic" "exec opencode"))))))
 
-(use-package agent-shell
-  :ensure t
-	:bind (("C-c C-o n" . my/agent-shell-opencode-new-shell)
-         ("C-c C-o r" . agent-shell-opencode-start-agent))
-  :config
-  (setq agent-shell-anthropic-authentication
-        (agent-shell-anthropic-make-authentication :login t))
-  (setq agent-shell-opencode-default-model-id "ollama/qwen3.8:27b"))
+(global-set-key (kbd "C-c C-'") #'my/ghostel-opencode)
 
 (defvar notify--buffer-id-counter 0)
 
@@ -350,39 +305,6 @@ in the minibuffer to drop all pending notifications."
 
 (global-set-key (kbd "C-c n") #'claude-idle-notifications-list)
 (global-set-key (kbd "C-c N") #'claude-idle-notifications-clear)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Launching Claude with an AWS_PROFILE override, for MCP servers that need
-;; AWS credentials resolved via a specific profile.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun claude-code-ide--read-aws-profile ()
-  "Prompt for an AWS profile, completing over ~/.aws/config profiles."
-  (let (profiles)
-    (when (file-exists-p "~/.aws/config")
-      (with-temp-buffer
-        (insert-file-contents (expand-file-name "~/.aws/config"))
-        (goto-char (point-min))
-        (while (re-search-forward "^\\[profile \\(.+\\)\\]" nil t)
-          (push (match-string 1) profiles))))
-    (completing-read "AWS profile: " (nreverse profiles) nil nil (getenv "AWS_PROFILE"))))
-
-(defun claude-code-ide-aws-profile (profile &optional relaunch)
-  "Start Claude Code for the current project with AWS_PROFILE set to PROFILE.
-With a prefix argument (RELAUNCH), stop the existing session for this
-directory first and resume its most recent conversation under the new
-profile instead of starting a fresh session."
-  (interactive (list (claude-code-ide--read-aws-profile) current-prefix-arg))
-  (when relaunch
-    (claude-code-ide-stop))
-  (let ((process-environment (cons (format "AWS_PROFILE=%s" profile) process-environment)))
-    (if relaunch
-        (claude-code-ide-resume)
-      (claude-code-ide))))
-
-(with-eval-after-load 'claude-code-ide-transient
-	(transient-append-suffix 'claude-code-ide-menu "r"
-		'("a" "Start with AWS profile (C-u: relaunch)" claude-code-ide-aws-profile)))
 
 (provide 'llm)
 ;;; llm.el ends here

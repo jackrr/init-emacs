@@ -110,7 +110,7 @@
 
 (defun /delete-window (&optional window)
 	"Like `delete-window', but also allow deleting a frame's main window
-when only side windows (e.g. claude-code-ide's terminal pane) would
+when only side windows would
 remain. Normally Emacs refuses to delete the main window in that case
 since side windows require one, so this clears the `window-side'
 parameter of any side windows first when WINDOW is the main window."
@@ -126,15 +126,14 @@ parameter of any side windows first when WINDOW is the main window."
 (global-set-key (kbd "C-x 0") #'/delete-window)
 
 (defun open-project-sessions (root)
-	"Land on project ROOT in a new perspective with ghostel + claude-code-ide.
-Opens a ghostel terminal in ROOT, and a claude-code-ide session
-alongside it (in its own side window per
-`claude-code-ide-window-side'). Also records ROOT as a known
-projectile project. If the current perspective is still the initial
-\"main\" one (i.e. this is the first project launched), renames it
-to the project name instead of switching to a new perspective, so
-launching from the startup projects list doesn't leave an empty
-\"main\" perspective cluttering the list."
+	"Land on project ROOT in a new perspective with ghostel + opencode.
+Opens a ghostel terminal in ROOT, and an OpenCode session alongside it
+via `my/ghostel-opencode'. Also records ROOT as a known projectile
+project. If the current perspective is still the initial \"main\" one
+(i.e. this is the first project launched), renames it to the project
+name instead of switching to a new perspective, so launching from the
+startup projects list doesn't leave an empty \"main\" perspective
+cluttering the list."
 	(setq root (file-name-as-directory (expand-file-name root)))
 	(projectile-add-known-project root)
 	(projectile-save-known-projects)
@@ -145,10 +144,10 @@ launching from the startup projects list doesn't leave an empty
 			(persp-switch name))
 		(delete-other-windows)
 		(ghostel-project)
-		(claude-code-ide)))
+		(my/ghostel-opencode)))
 
 (defun open-project (&optional project-path)
-	"Switch to a project in a new perspective with ghostel + claude-code-ide.
+	"Switch to a project in a new perspective with ghostel + opencode.
 If PROJECT-PATH is non-nil, switch directly to that project root;
 otherwise prompt among known projectile projects."
 	(interactive)
@@ -370,15 +369,15 @@ and cleans up its perspective and known-projects entry."
 		(when path
 			(open-project-magit path))))
 
-(defun recent-projects--open-at-point-claude ()
-	"Open the project on the current line with ghostel + claude-code-ide."
+(defun recent-projects--open-at-point-opencode ()
+	"Open the project on the current line with ghostel + opencode."
 	(interactive)
 	(let ((path (get-text-property (line-beginning-position) 'project-path)))
 		(when path
 			(open-project path))))
 
 (define-key recent-projects-mode-map (kbd "RET") #'recent-projects--open-at-point)
-(define-key recent-projects-mode-map (kbd "c")   #'recent-projects--open-at-point-claude)
+(define-key recent-projects-mode-map (kbd "c")   #'recent-projects--open-at-point-opencode)
 (define-key recent-projects-mode-map (kbd "n")   #'next-line)
 (define-key recent-projects-mode-map (kbd "p")   #'previous-line)
 (define-key recent-projects-mode-map (kbd "g")   #'recent-projects-show)
@@ -401,7 +400,7 @@ and cleans up its perspective and known-projects entry."
 				(erase-buffer)
 				(insert (propertize "Recent projects\n\n"
 														 'face '(:height 1.4 :weight bold)))
-				(insert (propertize "  RET open (ghostel+magit)  ·  c open (ghostel+claude)  ·  n/p move  ·  g refresh  ·  q quit\n\n"
+				(insert (propertize "  RET open (ghostel+magit)  ·  c open (ghostel+opencode)  ·  n/p move  ·  g refresh  ·  q quit\n\n"
 														 'face 'shadow))
 				(let ((projects (and (boundp 'projectile-known-projects)
 														 projectile-known-projects)))
