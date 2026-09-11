@@ -85,20 +85,41 @@ always matches the server.")
 (unless (server-running-p)
   (server-start))
 
-(defun my/ghostel-opencode ()
+(defun my/opencode--read-aws-profile ()
+  "Prompt for an AWS profile, completing over ~/.aws/config profiles."
+  (let (profiles)
+    (when (file-exists-p "~/.aws/config")
+      (with-temp-buffer
+        (insert-file-contents (expand-file-name "~/.aws/config"))
+        (goto-char (point-min))
+        (while (re-search-forward "^\\[profile \\(.+\\)\\]" nil t)
+          (push (match-string 1) profiles))))
+    (completing-read "AWS profile: " (nreverse profiles) nil nil (getenv "AWS_PROFILE"))))
+
+(defun my/ghostel-opencode (&optional profile)
   "Launch OpenCode in a ghostel terminal for the current project or directory.
-Re-uses an existing live OpenCode buffer for this project if one exists."
-  (interactive)
+Re-uses an existing live OpenCode buffer for this project if one exists.
+With a prefix argument, prompt for an AWS profile (completing over
+~/.aws/config) and launch with AWS_PROFILE set to it; the profile is
+part of the buffer name, so plain and profiled sessions of the same
+project can coexist."
+  (interactive
+   (list (when current-prefix-arg (my/opencode--read-aws-profile))))
   (let* ((root (or (and (fboundp 'projectile-project-root)
                         (projectile-project-root))
                    default-directory))
-         (buf-name (format "*ghostel: opencode: %s*"
-                           (file-name-nondirectory (directory-file-name root))))
+         (buf-name (format "*ghostel: opencode: %s%s*"
+                           (file-name-nondirectory (directory-file-name root))
+                           (if profile (format " (%s)" profile) "")))
          (existing (get-buffer buf-name)))
     (if (and existing (buffer-live-p existing) (get-buffer-process existing))
         (pop-to-buffer existing)
       (let ((default-directory root)
-            (buf (get-buffer-create buf-name)))
+            (buf (get-buffer-create buf-name))
+            (process-environment (if profile
+                                     (cons (format "AWS_PROFILE=%s" profile)
+                                           process-environment)
+                                   process-environment)))
         (pop-to-buffer buf)
         ;; Spawn through a login+interactive shell so it sources ~/.zshenv
         ;; etc. `ghostel-exec' execs the program directly (no shell), so
