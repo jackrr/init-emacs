@@ -35,6 +35,19 @@
 (use-package magit
   :ensure t)
 
+;; Syntax-highlighted diffs in magit via the `delta' CLI.
+;; Keeps a subtle add/remove tint instead of harsh green/red fills.
+(use-package magit-delta
+  :ensure t
+  :after magit
+  :hook (magit-mode . magit-delta-mode)
+  :config
+  (setq magit-delta-default-dark-faces t
+        magit-delta-delta-args
+        '("--max-line-distance" "0.6"
+          "--true-color" "always"
+          "--color-only")))
+
 (use-package magit-todos
 	:ensure t
 	:after magit
