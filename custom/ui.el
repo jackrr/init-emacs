@@ -89,10 +89,7 @@
           ("NOTE"       success bold)
           ("DEPRECATED" font-lock-doc-face bold))))
 
-(defun font-exists-p (font) (if (null (x-list-fonts font)) nil t))
-
-(when (and window-system (font-exists-p "FiraCode Nerd Font"))
-	(set-frame-font "FiraCode Nerd Font 12" nil t))
+(add-to-list 'default-frame-alist '(font . "FiraCode Nerd Font-12"))
 
 (use-package nerd-icons
 	:ensure t)
