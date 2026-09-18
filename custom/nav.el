@@ -176,7 +176,8 @@ launching from the startup projects list doesn't leave an empty
 		(ghostel-project)
 		(split-window-right)
 		(other-window 1)
-		(magit-status root)))
+		(let ((magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+			(magit-status root))))
 
 (defun open-project-magit (&optional project-path)
 	"Switch to a project in a new perspective with ghostel + magit panes.
