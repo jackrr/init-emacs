@@ -96,19 +96,17 @@ always matches the server.")
           (push (match-string 1) profiles))))
     (completing-read "AWS profile: " (nreverse profiles) nil nil (getenv "AWS_PROFILE"))))
 
-(defun my/ghostel-opencode (&optional profile)
-  "Launch OpenCode in a ghostel terminal for the current project or directory.
-Re-uses an existing live OpenCode buffer for this project if one exists.
-With a prefix argument, prompt for an AWS profile (completing over
-~/.aws/config) and launch with AWS_PROFILE set to it; the profile is
-part of the buffer name, so plain and profiled sessions of the same
-project can coexist."
-  (interactive
-   (list (when current-prefix-arg (my/opencode--read-aws-profile))))
+(defun my/ghostel-agent (agent &optional profile)
+  "Launch AGENT in a ghostel terminal for the current project or directory.
+AGENT is the command to exec. Re-uses an existing live buffer for this
+AGENT and project if one exists. PROFILE, when non-nil, is an AWS
+profile exported as AWS_PROFILE and made part of the buffer name, so
+plain and profiled sessions of the same project can coexist."
   (let* ((root (or (and (fboundp 'projectile-project-root)
                         (projectile-project-root))
                    default-directory))
-         (buf-name (format "*ghostel: opencode: %s%s*"
+         (buf-name (format "*ghostel: %s: %s%s*"
+                           agent
                            (file-name-nondirectory (directory-file-name root))
                            (if profile (format " (%s)" profile) "")))
          (existing (get-buffer buf-name)))
@@ -123,12 +121,31 @@ project can coexist."
         (pop-to-buffer buf)
         ;; Spawn through a login+interactive shell so it sources ~/.zshenv
         ;; etc. `ghostel-exec' execs the program directly (no shell), so
-        ;; launching "opencode" straight would miss DATABRICKS_HOST /
-        ;; DATABRICKS_TOKEN / PRISMO_TOKEN and OpenCode could not reach its API.
+        ;; launching the agent straight would miss DATABRICKS_HOST /
+        ;; DATABRICKS_TOKEN / PRISMO_TOKEN and it could not reach its API.
         (ghostel-exec buf (or (getenv "SHELL") "/bin/zsh")
-                      (list "-lic" "exec opencode"))))))
+                      (list "-lic" (format "exec %s" agent)))))))
+
+(defun my/ghostel-opencode (&optional profile)
+  "Launch OpenCode in a ghostel terminal for the current project or directory.
+With a prefix argument, prompt for an AWS profile (completing over
+~/.aws/config) and launch with AWS_PROFILE set to it.
+See `my/ghostel-agent'."
+  (interactive
+   (list (when current-prefix-arg (my/opencode--read-aws-profile))))
+  (my/ghostel-agent "opencode" profile))
+
+(defun my/ghostel-claude (&optional profile)
+  "Launch Claude Code in a ghostel terminal for the current project or directory.
+With a prefix argument, prompt for an AWS profile (completing over
+~/.aws/config) and launch with AWS_PROFILE set to it.
+See `my/ghostel-agent'."
+  (interactive
+   (list (when current-prefix-arg (my/opencode--read-aws-profile))))
+  (my/ghostel-agent "claude" profile))
 
 (global-set-key (kbd "C-c C-'") #'my/ghostel-opencode)
+(global-set-key (kbd "C-c C-;") #'my/ghostel-claude)
 
 (defvar notify--buffer-id-counter 0)
 

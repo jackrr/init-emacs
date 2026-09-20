@@ -138,15 +138,15 @@ parameter of any side windows first when WINDOW is the main window."
 
 (global-set-key (kbd "C-x 0") #'/delete-window)
 
-(defun open-project-sessions (root)
-	"Land on project ROOT in a new perspective with ghostel + opencode.
-Opens a ghostel terminal in ROOT, and an OpenCode session alongside it
-via `my/ghostel-opencode'. Also records ROOT as a known projectile
-project. If the current perspective is still the initial \"main\" one
-(i.e. this is the first project launched), renames it to the project
-name instead of switching to a new perspective, so launching from the
-startup projects list doesn't leave an empty \"main\" perspective
-cluttering the list."
+(defun open-project-sessions (root &optional agent)
+	"Land on project ROOT in a new perspective with ghostel + an agent.
+Opens a ghostel terminal in ROOT, and an agent session alongside it via
+AGENT (a function called with no arguments, `my/ghostel-opencode' by
+default). Also records ROOT as a known projectile project. If the
+current perspective is still the initial \"main\" one (i.e. this is the
+first project launched), renames it to the project name instead of
+switching to a new perspective, so launching from the startup projects
+list doesn't leave an empty \"main\" perspective cluttering the list."
 	(setq root (file-name-as-directory (expand-file-name root)))
 	(projectile-add-known-project root)
 	(projectile-save-known-projects)
@@ -157,7 +157,7 @@ cluttering the list."
 			(persp-switch name))
 		(delete-other-windows)
 		(ghostel-project)
-		(my/ghostel-opencode)))
+		(funcall (or agent #'my/ghostel-opencode))))
 
 (defun open-project (&optional project-path)
 	"Switch to a project in a new perspective with ghostel + opencode.
@@ -167,6 +167,16 @@ otherwise prompt among known projectile projects."
 	(open-project-sessions
 	 (or project-path
 			 (completing-read "Switch to project: " projectile-known-projects nil t))))
+
+(defun open-project-claude (&optional project-path)
+	"Switch to a project in a new perspective with ghostel + claude.
+If PROJECT-PATH is non-nil, switch directly to that project root;
+otherwise prompt among known projectile projects."
+	(interactive)
+	(open-project-sessions
+	 (or project-path
+			 (completing-read "Switch to project: " projectile-known-projects nil t))
+	 #'my/ghostel-claude))
 
 (defun open-project-sessions-magit (root)
 	"Land on project ROOT in a new perspective with ghostel + magit.
@@ -390,8 +400,16 @@ and cleans up its perspective and known-projects entry."
 		(when path
 			(open-project path))))
 
+(defun recent-projects--open-at-point-claude ()
+	"Open the project on the current line with ghostel + claude."
+	(interactive)
+	(let ((path (get-text-property (line-beginning-position) 'project-path)))
+		(when path
+			(open-project-claude path))))
+
 (define-key recent-projects-mode-map (kbd "RET") #'recent-projects--open-at-point)
 (define-key recent-projects-mode-map (kbd "c")   #'recent-projects--open-at-point-opencode)
+(define-key recent-projects-mode-map (kbd "a")   #'recent-projects--open-at-point-claude)
 (define-key recent-projects-mode-map (kbd "n")   #'next-line)
 (define-key recent-projects-mode-map (kbd "p")   #'previous-line)
 (define-key recent-projects-mode-map (kbd "g")   #'recent-projects-show)
@@ -414,7 +432,7 @@ and cleans up its perspective and known-projects entry."
 				(erase-buffer)
 				(insert (propertize "Recent projects\n\n"
 														 'face '(:height 1.4 :weight bold)))
-				(insert (propertize "  RET open (ghostel+magit)  ·  c open (ghostel+opencode)  ·  n/p move  ·  g refresh  ·  q quit\n\n"
+				(insert (propertize "  RET open (ghostel+magit)  ·  c open (ghostel+opencode)  ·  a open (ghostel+claude)  ·  n/p move  ·  g refresh  ·  q quit\n\n"
 														 'face 'shadow))
 				(let ((projects (and (boundp 'projectile-known-projects)
 														 projectile-known-projects)))
