@@ -138,7 +138,7 @@ parameter of any side windows first when WINDOW is the main window."
 
 (global-set-key (kbd "C-x 0") #'/delete-window)
 
-(defun open-project-sessions (root &optional agent)
+(defun open-project-sessions (root &optional agent background)
 	"Land on project ROOT in a new perspective with ghostel + an agent.
 Opens a ghostel terminal in ROOT, and an agent session alongside it via
 AGENT (a function called with no arguments, `my/ghostel-opencode' by
@@ -146,18 +146,33 @@ default). Also records ROOT as a known projectile project. If the
 current perspective is still the initial \"main\" one (i.e. this is the
 first project launched), renames it to the project name instead of
 switching to a new perspective, so launching from the startup projects
-list doesn't leave an empty \"main\" perspective cluttering the list."
+list doesn't leave an empty \"main\" perspective cluttering the list.
+
+With BACKGROUND non-nil, set the project's perspective up without
+switching to it: the current perspective and window layout are left
+untouched, and the new perspective waits in the background to be
+switched to later."
 	(setq root (file-name-as-directory (expand-file-name root)))
 	(projectile-add-known-project root)
 	(projectile-save-known-projects)
-	(let ((default-directory root)
-				(name (projectile-project-name root)))
-		(if (equal (persp-current-name) persp-initial-frame-name)
-				(persp-rename name)
-			(persp-switch name))
-		(delete-other-windows)
-		(ghostel-project)
-		(funcall (or agent #'my/ghostel-opencode))))
+	(let* ((default-directory root)
+				 (name (projectile-project-name root))
+				 (setup (lambda ()
+									(let ((default-directory root))
+										(delete-other-windows)
+										(ghostel-project)
+										(funcall (or agent #'my/ghostel-opencode))))))
+		(cond
+		 (background
+			;; `with-perspective' creates NAME if needed, runs the setup inside
+			;; it, then restores the caller's perspective and window layout.
+			(with-perspective name (funcall setup)))
+		 ((equal (persp-current-name) persp-initial-frame-name)
+			(persp-rename name)
+			(funcall setup))
+		 (t
+			(persp-switch name)
+			(funcall setup)))))
 
 (defun open-project (&optional project-path)
 	"Switch to a project in a new perspective with ghostel + opencode.
@@ -271,8 +286,11 @@ wrong-type-argument deeper in the worktree commands."
 						 (projectile-project-root))
 			(user-error "Not inside a recognized projectile project")))
 
-(defvar /worktree-setup-buffer-name "*worktree-setup*"
-	"Buffer that collects output of the asynchronous worktree setup.")
+(defvar /worktree-setup-buffer-prefix "*worktree-setup"
+	"Prefix for buffers collecting output of asynchronous worktree setup.
+Each `projectile-create-worktree' call gets its own uniquely named
+buffer built from this prefix and the worktree name, so several setups
+can run concurrently without clobbering each other.")
 
 (defvar /worktree-setup-nice-prefix '("nice" "-n" "10")
 	"Command prefix that lowers the priority of the worktree setup.
@@ -290,24 +308,35 @@ inside ROOT, also ensures worktrees/ is gitignored there. If
 script is run (with NAME as its only argument) instead of `git
 worktree add'.
 
-The setup runs asynchronously, so Emacs stays usable while it works.
-Output goes to `/worktree-setup-buffer-name'. On success the new
-worktree is opened via `open-project-sessions'; on failure that buffer
-is shown."
+Also prompts for an initial PROMPT that is sent to the coding agent so
+it can start working right away (leave it empty for none). The agent is
+Claude by default; with a prefix argument, prompt to pick a different
+agent (e.g. OpenCode).
+
+The setup runs asynchronously, so Emacs stays usable while it works, and
+several creates can run concurrently since each gets its own output
+buffer (see `/worktree-setup-buffer-prefix'). On success the worktree's
+perspective is set up in the background via `open-project-sessions'
+without stealing focus; on failure the output buffer is shown."
 	(interactive)
 	(let* ((root (file-name-as-directory (/project-root)))
 				 (name (read-string "Worktree name: "))
+				 (prompt (read-string "Initial prompt for agent (empty for none): "))
+				 (agent-fn (if current-prefix-arg
+											 (pcase (completing-read "Agent: " '("claude" "opencode") nil t nil nil "claude")
+												 ("opencode" #'my/ghostel-opencode)
+												 (_ #'my/ghostel-claude))
+										 #'my/ghostel-claude))
 				 (worktrees-dir (expand-file-name (/project-worktree-dir root) root))
 				 (wt-path (expand-file-name name worktrees-dir))
 				 (script (/project-worktree-script root))
-				 (buffer (get-buffer-create /worktree-setup-buffer-name)))
+				 (buf-name (generate-new-buffer-name
+										(format "%s: %s*" /worktree-setup-buffer-prefix name)))
+				 (buffer (get-buffer-create buf-name)))
 		(when (string-prefix-p (expand-file-name root) (expand-file-name wt-path))
 			(/ensure-worktrees-gitignored root))
 		(when (and script (not (file-executable-p script)))
 			(user-error "Worktree script %s is not executable" script))
-		(when (process-live-p (get-buffer-process buffer))
-			(user-error "A worktree setup is already running; see %s"
-									/worktree-setup-buffer-name))
 		(let* ((label (if script script "git worktree add"))
 					 (command (append /worktree-setup-nice-prefix
 														(if script
@@ -330,12 +359,15 @@ is shown."
 					 (if (and (eq (process-status proc) 'exit)
 										(zerop (process-exit-status proc)))
 							 (progn
-								 (message "Worktree %s ready" name)
-								 (open-project-sessions wt-path))
-						 (message "%s failed (see %s)" label /worktree-setup-buffer-name)
+								 (message "Worktree %s ready (in the background)" name)
+								 (open-project-sessions
+									wt-path
+									(lambda () (funcall agent-fn nil prompt))
+									t))
+						 (message "%s failed (see %s)" label buf-name)
 						 (pop-to-buffer (process-buffer proc))))))
 			(message "Creating worktree %s in the background (output in %s)..."
-							 name /worktree-setup-buffer-name))))
+							 name buf-name))))
 
 (defun /project-worktree-list (root)
 	"Return git worktree paths for the repo at ROOT, main tree first."

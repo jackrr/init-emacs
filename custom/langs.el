@@ -123,6 +123,7 @@ version); else run via bun; else a global typescript-language-server."
 					 tsx-ts-mode
 					 js-ts-mode
 					 nix-mode
+					 terraform-mode
            yaml-mode) . eglot-ensure))
 	:bind (:map eglot-mode-map
 							("C-c c d" . xref-find-definitions)
@@ -209,6 +210,12 @@ version); else run via bun; else a global typescript-language-server."
 
 (use-package nix-mode
 	:ensure t)
+
+;; Handles .tf and .tfvars.  Eglot already maps terraform-mode to
+;; "terraform-ls serve" (install: brew install hashicorp/tap/terraform-ls).
+(use-package terraform-mode
+	:ensure t
+	:hook (terraform-mode . terraform-format-on-save-mode))
 
 (use-package pandoc-mode
 	:ensure t

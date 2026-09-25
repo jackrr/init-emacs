@@ -96,12 +96,15 @@ always matches the server.")
           (push (match-string 1) profiles))))
     (completing-read "AWS profile: " (nreverse profiles) nil nil (getenv "AWS_PROFILE"))))
 
-(defun my/ghostel-agent (agent &optional profile)
+(defun my/ghostel-agent (agent &optional profile prompt-args)
   "Launch AGENT in a ghostel terminal for the current project or directory.
 AGENT is the command to exec. Re-uses an existing live buffer for this
 AGENT and project if one exists. PROFILE, when non-nil, is an AWS
 profile exported as AWS_PROFILE and made part of the buffer name, so
-plain and profiled sessions of the same project can coexist."
+plain and profiled sessions of the same project can coexist. PROMPT-ARGS,
+when non-nil, is a list of extra command-line arguments (e.g. an initial
+prompt) appended to AGENT so the agent starts working right away; it is
+ignored when re-using an existing buffer."
   (let* ((root (or (and (fboundp 'projectile-project-root)
                         (projectile-project-root))
                    default-directory))
@@ -124,25 +127,35 @@ plain and profiled sessions of the same project can coexist."
         ;; launching the agent straight would miss DATABRICKS_HOST /
         ;; DATABRICKS_TOKEN / PRISMO_TOKEN and it could not reach its API.
         (ghostel-exec buf (or (getenv "SHELL") "/bin/zsh")
-                      (list "-lic" (format "exec %s" agent)))))))
+                      (list "-lic"
+                            (format "exec %s"
+                                    (mapconcat #'shell-quote-argument
+                                               (cons agent prompt-args)
+                                               " "))))))))
 
-(defun my/ghostel-opencode (&optional profile)
+(defun my/ghostel-opencode (&optional profile prompt)
   "Launch OpenCode in a ghostel terminal for the current project or directory.
 With a prefix argument, prompt for an AWS profile (completing over
-~/.aws/config) and launch with AWS_PROFILE set to it.
+~/.aws/config) and launch with AWS_PROFILE set to it. PROMPT, when a
+non-empty string, is sent to OpenCode as its initial prompt.
 See `my/ghostel-agent'."
   (interactive
    (list (when current-prefix-arg (my/opencode--read-aws-profile))))
-  (my/ghostel-agent "opencode" profile))
+  (my/ghostel-agent "opencode" profile
+                    (when (and prompt (not (string-empty-p prompt)))
+                      (list "--prompt" prompt))))
 
-(defun my/ghostel-claude (&optional profile)
+(defun my/ghostel-claude (&optional profile prompt)
   "Launch Claude Code in a ghostel terminal for the current project or directory.
 With a prefix argument, prompt for an AWS profile (completing over
-~/.aws/config) and launch with AWS_PROFILE set to it.
+~/.aws/config) and launch with AWS_PROFILE set to it. PROMPT, when a
+non-empty string, is passed to Claude as its initial prompt.
 See `my/ghostel-agent'."
   (interactive
    (list (when current-prefix-arg (my/opencode--read-aws-profile))))
-  (my/ghostel-agent "claude" profile))
+  (my/ghostel-agent "claude" profile
+                    (when (and prompt (not (string-empty-p prompt)))
+                      (list prompt))))
 
 (global-set-key (kbd "C-c C-'") #'my/ghostel-opencode)
 (global-set-key (kbd "C-c C-;") #'my/ghostel-claude)
