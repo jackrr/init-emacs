@@ -328,7 +328,10 @@ without stealing focus; on failure the output buffer is shown."
 												 (_ #'my/ghostel-claude))
 										 #'my/ghostel-claude))
 				 (worktrees-dir (expand-file-name (/project-worktree-dir root) root))
-				 (wt-path (expand-file-name name worktrees-dir))
+				 ;; NAME is the branch and may contain slashes (e.g. jr/do-a-thing).
+				 ;; The directory uses dashes instead, as setup-worktree.sh does.
+				 (wt-path (expand-file-name (replace-regexp-in-string "/" "-" name)
+																		worktrees-dir))
 				 (script (/project-worktree-script root))
 				 (buf-name (generate-new-buffer-name
 										(format "%s: %s*" /worktree-setup-buffer-prefix name)))
@@ -395,12 +398,19 @@ and cleans up its perspective and known-projects entry."
 		(let* ((wt-path (completing-read "Delete worktree: " others nil t))
 					 (wt-name (file-name-nondirectory (directory-file-name wt-path))))
 			(when (yes-or-no-p (format "Delete worktree %s? " wt-path))
-				(let ((default-directory main))
+				(let ((default-directory main)
+							;; The branch can differ from the directory name
+							;; (jr/do-a-thing lives in jr-do-a-thing), so ask git.
+							(branch (string-trim
+											 (shell-command-to-string
+												(format "git -C %s branch --show-current"
+																(shell-quote-argument wt-path))))))
 					(with-temp-buffer
 						(let ((status (call-process "git" nil t nil "worktree" "remove" wt-path)))
 							(unless (zerop status)
 								(user-error "git worktree remove failed: %s" (buffer-string)))))
-					(call-process "git" nil nil nil "branch" "-d" wt-name))
+					(unless (string-empty-p branch)
+						(call-process "git" nil nil nil "branch" "-d" branch)))
 				(projectile-remove-known-project (file-name-as-directory (abbreviate-file-name wt-path)))
 				(projectile-save-known-projects)
 				(when (member wt-name (persp-names))
