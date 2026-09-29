@@ -386,7 +386,12 @@ without stealing focus; on failure the output buffer is shown."
 	"Remove one of the current project's git worktrees.
 Prompts among worktrees (excluding the main working tree), removes it
 via `git worktree remove', deletes its same-named branch if merged,
-and cleans up its perspective and known-projects entry."
+and cleans up its perspective and known-projects entry.
+
+The removal runs asynchronously (and niced, see
+`/worktree-setup-nice-prefix'), so Emacs stays usable while git
+deletes the files. Output goes to its own buffer; on failure that
+buffer is shown."
 	(interactive)
 	(let* ((root (file-name-as-directory (/project-root)))
 				 (all (/project-worktree-list root))
@@ -398,24 +403,46 @@ and cleans up its perspective and known-projects entry."
 		(let* ((wt-path (completing-read "Delete worktree: " others nil t))
 					 (wt-name (file-name-nondirectory (directory-file-name wt-path))))
 			(when (yes-or-no-p (format "Delete worktree %s? " wt-path))
-				(let ((default-directory main)
-							;; The branch can differ from the directory name
-							;; (jr/do-a-thing lives in jr-do-a-thing), so ask git.
-							(branch (string-trim
-											 (shell-command-to-string
-												(format "git -C %s branch --show-current"
-																(shell-quote-argument wt-path))))))
-					(with-temp-buffer
-						(let ((status (call-process "git" nil t nil "worktree" "remove" wt-path)))
-							(unless (zerop status)
-								(user-error "git worktree remove failed: %s" (buffer-string)))))
-					(unless (string-empty-p branch)
-						(call-process "git" nil nil nil "branch" "-d" branch)))
-				(projectile-remove-known-project (file-name-as-directory (abbreviate-file-name wt-path)))
-				(projectile-save-known-projects)
-				(when (member wt-name (persp-names))
-					(persp-kill wt-name))
-				(message "Deleted worktree %s" wt-path)))))
+				(let* ((default-directory main)
+							 ;; The branch can differ from the directory name
+							 ;; (jr/do-a-thing lives in jr-do-a-thing), so ask git.
+							 (branch (string-trim
+												(shell-command-to-string
+												 (format "git -C %s branch --show-current"
+																 (shell-quote-argument wt-path)))))
+							 (command (append /worktree-setup-nice-prefix
+																(list "git" "worktree" "remove" wt-path)))
+							 (buf-name (generate-new-buffer-name
+													(format "*worktree-delete: %s*" wt-name)))
+							 (buffer (get-buffer-create buf-name)))
+					(with-current-buffer buffer
+						(setq default-directory main)
+						(insert (format "$ %s\n" (mapconcat #'shell-quote-argument command " "))))
+					(make-process
+					 :name "worktree-delete"
+					 :buffer buffer
+					 :command command
+					 :noquery t
+					 :connection-type 'pipe
+					 :sentinel
+					 (lambda (proc _event)
+						 (unless (process-live-p proc)
+							 (if (and (eq (process-status proc) 'exit)
+												(zerop (process-exit-status proc)))
+									 (let ((default-directory main))
+										 (unless (string-empty-p branch)
+											 (call-process "git" nil nil nil "branch" "-d" branch))
+										 (projectile-remove-known-project
+											(file-name-as-directory (abbreviate-file-name wt-path)))
+										 (projectile-save-known-projects)
+										 (when (member wt-name (persp-names))
+											 (persp-kill wt-name))
+										 (kill-buffer (process-buffer proc))
+										 (message "Deleted worktree %s" wt-path))
+								 (message "git worktree remove failed (see %s)" buf-name)
+								 (pop-to-buffer (process-buffer proc))))))
+					(message "Deleting worktree %s in the background (output in %s)..."
+									 wt-path buf-name))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Recent-projects startup buffer
