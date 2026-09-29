@@ -35,10 +35,30 @@
 	:config
 	(ultra-scroll-mode 1))
 
+;; C-k in a ghostel terminal: the terminal program (e.g. Claude's prompt)
+;; deletes the text into its own kill buffer, which Emacs never sees. Copy
+;; the text from the terminal cursor to end of line into the kill ring
+;; first, so C-y (`ghostel-yank') and the system clipboard get it too.
+(defun my/ghostel-kill-line ()
+  "Copy text from the terminal cursor to end of line, then send C-k."
+  (interactive)
+  (when ghostel--cursor-char-pos
+    (let ((text (string-trim-right
+                 (buffer-substring-no-properties
+                  ghostel--cursor-char-pos
+                  (save-excursion
+                    (goto-char ghostel--cursor-char-pos)
+                    (line-end-position))))))
+      (unless (string-empty-p text)
+        (kill-new text))))
+  (ghostel-send-key "k" "ctrl"))
+
 (use-package ghostel
   :ensure t
 	:bind (("C-c t" . ghostel-project)
-				 ("C-c C-t" . ghostel-project)))
+				 ("C-c C-t" . ghostel-project)
+				 :map ghostel-semi-char-mode-map
+				 ("C-k" . my/ghostel-kill-line)))
 
 (use-package ligature
 	:ensure t
