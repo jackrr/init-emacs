@@ -385,7 +385,8 @@ without stealing focus; on failure the output buffer is shown."
 (defun projectile-delete-worktree ()
 	"Remove one of the current project's git worktrees.
 Prompts among worktrees (excluding the main working tree), removes it
-via `git worktree remove', deletes its same-named branch if merged,
+via `git worktree remove --force' (modified and untracked files are
+deleted too), deletes its same-named branch if merged,
 and cleans up its perspective and known-projects entry.
 
 The removal runs asynchronously (and niced, see
@@ -402,7 +403,7 @@ buffer is shown."
 			(user-error "No worktrees to delete for %s" main))
 		(let* ((wt-path (completing-read "Delete worktree: " others nil t))
 					 (wt-name (file-name-nondirectory (directory-file-name wt-path))))
-			(when (yes-or-no-p (format "Delete worktree %s? " wt-path))
+			(when (yes-or-no-p (format "Delete worktree %s (uncommitted changes are lost)? " wt-path))
 				(let* ((default-directory main)
 							 ;; The branch can differ from the directory name
 							 ;; (jr/do-a-thing lives in jr-do-a-thing), so ask git.
@@ -411,7 +412,7 @@ buffer is shown."
 												 (format "git -C %s branch --show-current"
 																 (shell-quote-argument wt-path)))))
 							 (command (append /worktree-setup-nice-prefix
-																(list "git" "worktree" "remove" wt-path)))
+																(list "git" "worktree" "remove" "--force" wt-path)))
 							 (buf-name (generate-new-buffer-name
 													(format "*worktree-delete: %s*" wt-name)))
 							 (buffer (get-buffer-create buf-name)))
