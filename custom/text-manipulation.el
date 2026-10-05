@@ -40,7 +40,9 @@
 (use-package emojify
 	:ensure t
 	:hook (after-init . global-emojify-mode)
-	:bind (("C-M-e" . emojify-insert-emoji)))
+	:bind (("C-M-e" . emojify-insert-emoji))
+	:config
+	(add-to-list 'emojify-inhibit-major-modes 'ghostel-mode))
 
 (use-package format-all
 	:ensure t
