@@ -115,6 +115,8 @@ ignored when re-using an existing buffer."
          (existing (get-buffer buf-name)))
     (if (and existing (buffer-live-p existing) (get-buffer-process existing))
         (pop-to-buffer existing)
+      ;; `ghostel-exec' is not autoloaded.
+      (require 'ghostel)
       (let ((default-directory root)
             (buf (get-buffer-create buf-name))
             (process-environment (if profile

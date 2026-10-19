@@ -258,21 +258,23 @@ E.g.: (add-to-list \\='projectile-worktree-dir-overrides
 				(write-region (point-min) (point-max) gitignore)))))
 
 (defvar projectile-worktree-script-overrides
-	'(("~/dev/app/" . "~/dev/app/.claude/setup-worktree.sh"))
-	"Alist of (PROJECT-ROOT . SCRIPT-PATH). When set for a project,
-`projectile-create-worktree' runs SCRIPT-PATH with the worktree name
-as its sole argument instead of running `git worktree add' directly.
+	'(("~/dev/app/" "~/dev/app/.claude/setup-worktree.sh" "--frontend"))
+	"Alist of (PROJECT-ROOT SCRIPT-PATH EXTRA-ARGS...). When set for a
+project, `projectile-create-worktree' runs SCRIPT-PATH with the worktree
+name and then EXTRA-ARGS as arguments, instead of running `git worktree
+add' directly.
 The script is responsible for creating the worktree at the path
 `/project-worktree-dir' would compute.
 E.g.: (add-to-list \\='projectile-worktree-script-overrides
-                    \\='(\"~/dev/app/\" . \"~/dev/app/.claude/setup-worktree.sh\"))")
+                    \\='(\"~/dev/app/\" \"~/dev/app/.claude/setup-worktree.sh\" \"--frontend\"))")
 
 (defun /project-worktree-script (root)
-	"Return the absolute setup script for ROOT, or nil if it has none.
-Expands \"~\" because `make-process' runs the command directly, with no
-shell. An unexpanded tilde reaches the program as a literal directory."
-	(let ((script (cdr (assoc root projectile-worktree-script-overrides #'file-equal-p))))
-		(and script (expand-file-name script))))
+	"Return (SCRIPT . EXTRA-ARGS) for ROOT, or nil if it has none.
+SCRIPT is absolute. Expands \"~\" because `make-process' runs the command
+directly, with no shell. An unexpanded tilde reaches the program as a
+literal directory."
+	(let ((entry (cdr (assoc root projectile-worktree-script-overrides #'file-equal-p))))
+		(and entry (cons (expand-file-name (car entry)) (cdr entry)))))
 
 (defun /project-root ()
 	"Resolve the current project root, erroring clearly if there is none.
@@ -304,8 +306,8 @@ given by `/project-worktree-dir' (nested \"worktrees/\" by default, or
 a per-project override such as \"../\"). When the worktree lands
 inside ROOT, also ensures worktrees/ is gitignored there. If
 `projectile-worktree-script-overrides' has an entry for ROOT, that
-script is run (with NAME as its only argument) instead of `git
-worktree add'.
+script is run (with NAME and the entry's extra arguments) instead of
+`git worktree add'.
 
 Also prompts for an initial PROMPT that is sent to the coding agent so
 it can start working right away (leave it empty for none). The agent is
@@ -331,7 +333,8 @@ without stealing focus; on failure the output buffer is shown."
 				 ;; The directory uses dashes instead, as setup-worktree.sh does.
 				 (wt-path (expand-file-name (replace-regexp-in-string "/" "-" name)
 																		worktrees-dir))
-				 (script (/project-worktree-script root))
+				 (script-entry (/project-worktree-script root))
+				 (script (car script-entry))
 				 (buf-name (generate-new-buffer-name
 										(format "%s: %s*" /worktree-setup-buffer-prefix name)))
 				 (buffer (get-buffer-create buf-name)))
@@ -342,7 +345,7 @@ without stealing focus; on failure the output buffer is shown."
 		(let* ((label (if script script "git worktree add"))
 					 (command (append /worktree-setup-nice-prefix
 														(if script
-																(list script name)
+																(cons script (cons name (cdr script-entry)))
 															(list "git" "worktree" "add" wt-path "-b" name)))))
 			(with-current-buffer buffer
 				(let ((inhibit-read-only t))
