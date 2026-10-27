@@ -14,6 +14,15 @@
   (remq 'process-kill-buffer-query-function
         kill-buffer-query-functions))
 
+;; Ask before C-x C-c closes the frame or Emacs.  A wrapper also covers
+;; emacsclient frames, which `confirm-kill-emacs' does not.
+(defun /confirm-kill-terminal ()
+  "Ask for confirmation, then run `save-buffers-kill-terminal'."
+  (interactive)
+  (when (y-or-n-p "Really quit? ")
+    (save-buffers-kill-terminal)))
+(global-set-key (kbd "C-x C-c") #'/confirm-kill-terminal)
+
 ;; Free up shift+space binding
 (setq shift-select-mode nil)
 
