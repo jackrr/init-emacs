@@ -152,7 +152,7 @@ version); else run via bun; else a global typescript-language-server."
 	(/ensure-npm-global "typescript-language-server" "typescript-language-server")
 	(/ensure-npm-global "tsc" "typescript")
 	(add-to-list 'eglot-server-programs
-							 '(typst-ts-mode . ("lspx" "--lsp" "tinymist" "--lsp" "harper-ls --stdio"))))
+							 '(typst-ts-mode . ("tinymist"))))
 
 (use-package markdown-mode
   :ensure t)
@@ -195,6 +195,15 @@ version); else run via bun; else a global typescript-language-server."
 ;; (use-package go-ts-mode)
 
 ;; (use-package ruby-ts-mode)
+
+(use-package typst-ts-mode
+	:ensure t
+	:custom
+	(typst-ts-mode-watch-options "--open")
+	:config
+	(add-to-list 'treesit-language-source-alist
+							 '(typst "https://github.com/uben0/tree-sitter-typst"))
+	(treesit-ensure-installed 'typst))
 
 (use-package dockerfile-mode
 	:ensure t)
