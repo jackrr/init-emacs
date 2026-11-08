@@ -60,6 +60,14 @@
 				 :map ghostel-semi-char-mode-map
 				 ("C-k" . my/ghostel-kill-line)))
 
+(use-package pdf-tools
+	:ensure t
+	:defer t
+	:custom
+	(pdf-view-display-size 'fit-page)
+	:init
+	(pdf-loader-install))
+
 (use-package ligature
 	:ensure t
   :config

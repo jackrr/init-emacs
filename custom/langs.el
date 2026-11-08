@@ -109,6 +109,17 @@ version); else run via bun; else a global typescript-language-server."
       (list "bun" "x" "typescript-language-server" "--stdio"))
      (t (list "typescript-language-server" "--stdio")))))
 
+(defun /eglot-astro-ls (&optional _interactive _project)
+  "Contact for astro-ls, pointed at the project's typescript, else the global one."
+  (let* ((from (or buffer-file-name default-directory))
+         (nm (and from (locate-dominating-file from "node_modules/typescript")))
+         (root (if nm
+                   (expand-file-name "node_modules" nm)
+                 (string-trim (shell-command-to-string "npm root -g")))))
+    (list "astro-ls" "--stdio"
+          :initializationOptions
+          `(:typescript (:tsdk ,(expand-file-name "typescript/lib" root))))))
+
 (use-package eglot
 	:ensure t
 	:hook (((elisp-mode
@@ -119,6 +130,7 @@ version); else run via bun; else a global typescript-language-server."
 					 rust-ts-mode
 					 typst-ts-mode
 					 svelte-mode
+					 astro-ts-mode
 					 typescript-ts-mode
 					 tsx-ts-mode
 					 js-ts-mode
@@ -151,6 +163,8 @@ version); else run via bun; else a global typescript-language-server."
 	;; typescript-language-server drives tsserver, which ships with typescript.
 	(/ensure-npm-global "typescript-language-server" "typescript-language-server")
 	(/ensure-npm-global "tsc" "typescript")
+	(add-to-list 'eglot-server-programs '(astro-ts-mode . /eglot-astro-ls))
+	(/ensure-npm-global "astro-ls" "@astrojs/language-server")
 	(add-to-list 'eglot-server-programs
 							 '(typst-ts-mode . ("tinymist"))))
 
@@ -165,6 +179,18 @@ version); else run via bun; else a global typescript-language-server."
   ;; fix face inheritance cycle
   (with-eval-after-load 'gnus
     (require 'svelte-mode)))
+
+;; The package only adds its auto-mode entry if the grammar is already installed.
+(use-package astro-ts-mode
+  :ensure t
+  :mode "\\.astro\\'"
+  :config
+  (add-to-list 'treesit-language-source-alist
+               '(astro "https://github.com/virchau13/tree-sitter-astro"))
+  ;; These register the css/typescript/html grammar recipes.
+  (mapc #'require '(css-mode typescript-ts-mode html-ts-mode))
+  (dolist (lang '(astro css typescript html))
+    (treesit-ensure-installed lang)))
 
 ;; Emacs maps .jsx to js-jsx-mode, which has no tree-sitter mode of its own.
 ;; The tsx grammar reads JSX, so use `tsx-ts-mode' there.
