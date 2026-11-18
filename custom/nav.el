@@ -299,8 +299,8 @@ Set to nil to run the setup at normal priority. Setup jobs such as
 `uv sync' or `npm ci' saturate CPU and disk, which makes the whole
 machine feel slow; running them niced keeps the machine usable.")
 
-(defun projectile-create-worktree ()
-	"Create a git worktree for the current project and open it.
+(defun projectile-create-worktree (&optional root)
+	"Create a git worktree for ROOT (default: current project) and open it.
 Creates a new branch and worktree named by prompt, under the directory
 given by `/project-worktree-dir' (nested \"worktrees/\" by default, or
 a per-project override such as \"../\"). When the worktree lands
@@ -320,7 +320,7 @@ buffer (see `/worktree-setup-buffer-prefix'). On success the worktree's
 perspective is set up in the background via `open-project-sessions'
 without stealing focus; on failure the output buffer is shown."
 	(interactive)
-	(let* ((root (file-name-as-directory (/project-root)))
+	(let* ((root (file-name-as-directory (or root (/project-root))))
 				 (name (read-string "Worktree name: "))
 				 (prompt (read-string "Initial prompt for agent (empty for none): "))
 				 (agent-fn (if current-prefix-arg
@@ -352,25 +352,28 @@ without stealing focus; on failure the output buffer is shown."
 					(erase-buffer))
 				(setq default-directory root)
 				(insert (format "$ %s\n" (mapconcat #'shell-quote-argument command " "))))
-			(make-process
-			 :name "worktree-setup"
-			 :buffer buffer
-			 :command command
-			 :noquery t
-			 :connection-type 'pipe
-			 :sentinel
-			 (lambda (proc _event)
-				 (unless (process-live-p proc)
-					 (if (and (eq (process-status proc) 'exit)
-										(zerop (process-exit-status proc)))
-							 (progn
-								 (message "Worktree %s ready (in the background)" name)
-								 (open-project-sessions
-									wt-path
-									(lambda () (funcall agent-fn nil prompt))
-									t))
-						 (message "%s failed (see %s)" label buf-name)
-						 (pop-to-buffer (process-buffer proc))))))
+			;; `make-process' runs in the caller's `default-directory', which
+			;; is not ROOT when called from outside the project (e.g. *Projects*).
+			(let ((default-directory root))
+				(make-process
+				 :name "worktree-setup"
+				 :buffer buffer
+				 :command command
+				 :noquery t
+				 :connection-type 'pipe
+				 :sentinel
+				 (lambda (proc _event)
+					 (unless (process-live-p proc)
+						 (if (and (eq (process-status proc) 'exit)
+											(zerop (process-exit-status proc)))
+								 (progn
+									 (message "Worktree %s ready (in the background)" name)
+									 (open-project-sessions
+										wt-path
+										(lambda () (funcall agent-fn nil prompt))
+										t))
+							 (message "%s failed (see %s)" label buf-name)
+							 (pop-to-buffer (process-buffer proc)))))))
 			(message "Creating worktree %s in the background (output in %s)..."
 							 name buf-name))))
 
@@ -384,68 +387,81 @@ without stealing focus; on failure the output buffer is shown."
 				(push (match-string 1) paths)))
 		(nreverse paths)))
 
-(defun projectile-delete-worktree ()
-	"Remove one of the current project's git worktrees.
-Prompts among worktrees (excluding the main working tree), removes it
-via `git worktree remove --force' (modified and untracked files are
-deleted too), deletes its same-named branch if merged,
-and cleans up its perspective and known-projects entry.
+(defun /project-worktree-split (root)
+	"Return (MAIN . OTHERS) for the repo at ROOT.
+MAIN is the main working tree. OTHERS are the linked worktrees. All
+paths are expanded directory names."
+	(let ((all (mapcar (lambda (p) (file-name-as-directory (expand-file-name p)))
+										 (/project-worktree-list root))))
+		(cons (car all) (cdr all))))
+
+(defun projectile-delete-worktree (&optional root)
+	"Remove one of the git worktrees of ROOT (default: current project).
+Prompts among worktrees (excluding the main working tree), then deletes
+the selected one with `/delete-worktree'."
+	(interactive)
+	(let* ((split (/project-worktree-split
+								 (file-name-as-directory (or root (/project-root)))))
+				 (main (car split))
+				 (others (cdr split)))
+		(unless others
+			(user-error "No worktrees to delete for %s" main))
+		(/delete-worktree main (completing-read "Delete worktree: " others nil t))))
+
+(defun /delete-worktree (main wt-path)
+	"Delete worktree WT-PATH of the repo whose main working tree is MAIN.
+Asks for confirmation in the minibuffer first. Removes the worktree via
+`git worktree remove --force' (modified and untracked files are
+deleted too), deletes its branch if merged, and cleans up its
+perspective and known-projects entry.
 
 The removal runs asynchronously (and niced, see
 `/worktree-setup-nice-prefix'), so Emacs stays usable while git
 deletes the files. Output goes to its own buffer; on failure that
 buffer is shown."
-	(interactive)
-	(let* ((root (file-name-as-directory (/project-root)))
-				 (all (/project-worktree-list root))
-				 (main (file-name-as-directory (expand-file-name (car all))))
-				 (others (mapcar (lambda (p) (file-name-as-directory (expand-file-name p)))
-												 (cdr all))))
-		(unless others
-			(user-error "No worktrees to delete for %s" main))
-		(let* ((wt-path (completing-read "Delete worktree: " others nil t))
-					 (wt-name (file-name-nondirectory (directory-file-name wt-path))))
-			(when (yes-or-no-p (format "Delete worktree %s (uncommitted changes are lost)? " wt-path))
-				(let* ((default-directory main)
-							 ;; The branch can differ from the directory name
-							 ;; (jr/do-a-thing lives in jr-do-a-thing), so ask git.
-							 (branch (string-trim
-												(shell-command-to-string
-												 (format "git -C %s branch --show-current"
-																 (shell-quote-argument wt-path)))))
-							 (command (append /worktree-setup-nice-prefix
-																(list "git" "worktree" "remove" "--force" wt-path)))
-							 (buf-name (generate-new-buffer-name
-													(format "*worktree-delete: %s*" wt-name)))
-							 (buffer (get-buffer-create buf-name)))
-					(with-current-buffer buffer
-						(setq default-directory main)
-						(insert (format "$ %s\n" (mapconcat #'shell-quote-argument command " "))))
-					(make-process
-					 :name "worktree-delete"
-					 :buffer buffer
-					 :command command
-					 :noquery t
-					 :connection-type 'pipe
-					 :sentinel
-					 (lambda (proc _event)
-						 (unless (process-live-p proc)
-							 (if (and (eq (process-status proc) 'exit)
-												(zerop (process-exit-status proc)))
-									 (let ((default-directory main))
-										 (unless (string-empty-p branch)
-											 (call-process "git" nil nil nil "branch" "-d" branch))
-										 (projectile-remove-known-project
-											(file-name-as-directory (abbreviate-file-name wt-path)))
-										 (projectile-save-known-projects)
-										 (when (member wt-name (persp-names))
-											 (persp-kill wt-name))
-										 (kill-buffer (process-buffer proc))
-										 (message "Deleted worktree %s" wt-path))
-								 (message "git worktree remove failed (see %s)" buf-name)
-								 (pop-to-buffer (process-buffer proc))))))
-					(message "Deleting worktree %s in the background (output in %s)..."
-									 wt-path buf-name))))))
+	(let ((wt-name (file-name-nondirectory (directory-file-name wt-path))))
+		(when (yes-or-no-p (format "Delete worktree %s (uncommitted changes are lost)? " wt-path))
+			(let* ((default-directory main)
+						 ;; The branch can differ from the directory name
+						 ;; (jr/do-a-thing lives in jr-do-a-thing), so ask git.
+						 (branch (string-trim
+											(shell-command-to-string
+											 (format "git -C %s branch --show-current"
+															 (shell-quote-argument wt-path)))))
+						 (command (append /worktree-setup-nice-prefix
+															(list "git" "worktree" "remove" "--force" wt-path)))
+						 (buf-name (generate-new-buffer-name
+												(format "*worktree-delete: %s*" wt-name)))
+						 (buffer (get-buffer-create buf-name)))
+				(with-current-buffer buffer
+					(setq default-directory main)
+					(insert (format "$ %s\n" (mapconcat #'shell-quote-argument command " "))))
+				(make-process
+				 :name "worktree-delete"
+				 :buffer buffer
+				 :command command
+				 :noquery t
+				 :connection-type 'pipe
+				 :sentinel
+				 (lambda (proc _event)
+					 (unless (process-live-p proc)
+						 (if (and (eq (process-status proc) 'exit)
+											(zerop (process-exit-status proc)))
+								 (let ((default-directory main))
+									 (unless (string-empty-p branch)
+										 (call-process "git" nil nil nil "branch" "-d" branch))
+									 (projectile-remove-known-project
+										(file-name-as-directory (abbreviate-file-name wt-path)))
+									 (projectile-save-known-projects)
+									 (when (member wt-name (persp-names))
+										 (persp-kill wt-name))
+									 (kill-buffer (process-buffer proc))
+									 (recent-projects-refresh)
+									 (message "Deleted worktree %s" wt-path))
+							 (message "git worktree remove failed (see %s)" buf-name)
+							 (pop-to-buffer (process-buffer proc))))))
+				(message "Deleting worktree %s in the background (output in %s)..."
+								 wt-path buf-name)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Recent-projects startup buffer
@@ -479,7 +495,40 @@ buffer is shown."
 		(when path
 			(open-project-claude path))))
 
+(defun recent-projects--delete-worktree-at-point ()
+	"Delete the worktree of the project on the current line.
+If the project is a linked worktree, delete it directly. If it is a main
+working tree, prompt among its worktrees. Asks for confirmation first."
+	(interactive)
+	(let ((path (get-text-property (line-beginning-position) 'project-path)))
+		(unless path
+			(user-error "No project on this line"))
+		(let* ((path (file-name-as-directory (expand-file-name path)))
+					 (main (car (/project-worktree-split path))))
+			(unless main
+				(user-error "%s is not a git repository" path))
+			(if (file-equal-p path main)
+					(projectile-delete-worktree path)
+				(/delete-worktree main path)))))
+
+(defun recent-projects--create-worktree-at-point ()
+	"Create a new worktree for the project on the current line.
+If the project is a linked worktree, use its main working tree as the
+root, so per-project overrides apply and worktrees do not nest. With a
+prefix argument, prompt for the agent (see `projectile-create-worktree')."
+	(interactive)
+	(let ((path (get-text-property (line-beginning-position) 'project-path)))
+		(unless path
+			(user-error "No project on this line"))
+		(let ((main (car (/project-worktree-split
+											(file-name-as-directory (expand-file-name path))))))
+			(unless main
+				(user-error "%s is not a git repository" path))
+			(projectile-create-worktree main))))
+
 (define-key recent-projects-mode-map (kbd "RET") #'recent-projects--open-at-point)
+(define-key recent-projects-mode-map (kbd "w")   #'recent-projects--create-worktree-at-point)
+(define-key recent-projects-mode-map (kbd "d")   #'recent-projects--delete-worktree-at-point)
 (define-key recent-projects-mode-map (kbd "c")   #'recent-projects--open-at-point-opencode)
 (define-key recent-projects-mode-map (kbd "a")   #'recent-projects--open-at-point-claude)
 (define-key recent-projects-mode-map (kbd "n")   #'next-line)
@@ -487,9 +536,22 @@ buffer is shown."
 (define-key recent-projects-mode-map (kbd "g")   #'recent-projects-show)
 (define-key recent-projects-mode-map (kbd "q")   #'quit-window)
 
+(defun recent-projects-refresh ()
+	"Re-render the projects buffer if it exists, keeping point's line."
+	(when-let* ((buf (get-buffer recent-projects-buffer-name)))
+		(with-current-buffer buf
+			(let ((line (line-number-at-pos)))
+				(recent-projects--render)
+				(goto-char (point-min))
+				(forward-line (1- line))))))
+
 (defun recent-projects-show ()
 	"Show a buffer listing recent projectile projects."
 	(interactive)
+	(switch-to-buffer (recent-projects--render)))
+
+(defun recent-projects--render ()
+	"Fill the projects buffer and return it."
 	(require 'projectile)
 	;; `projectile-known-projects' is normally loaded when `projectile-mode'
 	;; turns on (after-init-hook). This buffer renders earlier than that via
@@ -504,7 +566,7 @@ buffer is shown."
 				(erase-buffer)
 				(insert (propertize "Recent projects\n\n"
 														 'face '(:height 1.4 :weight bold)))
-				(insert (propertize "  RET open (ghostel+magit)  ·  c open (opencode)  ·  a open (claude)  ·  n/p move  ·  g refresh  ·  q quit\n\n"
+				(insert (propertize "  RET open (ghostel+magit)  ·  c open (opencode)  ·  a open (claude)  ·  w new worktree  ·  d delete worktree  ·  n/p move  ·  g refresh  ·  q quit\n\n"
 														 'face 'shadow))
 				(let ((projects (and (boundp 'projectile-known-projects)
 														 projectile-known-projects)))
@@ -520,7 +582,7 @@ buffer is shown."
 			(recent-projects-mode)
 			(goto-char (point-min))
 			(forward-line 3))
-		(switch-to-buffer buf)))
+		buf))
 
 ;; Show the projects buffer at startup instead of *scratch*
 (setq initial-buffer-choice
